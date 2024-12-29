@@ -1,0 +1,35 @@
+# data
+data/
+*.h5
+__pycache__
+data/raw/
+data/processed/
+*.tif
+*.png
+*.yml
+
+# data pre-processing
+data_processing/*
+
+# logs
+checkpoints/
+pts_logs/
+vis/
+*log.txt
+*logs
+*.log
+*.ckpt
+wandb/
+
+*.wandb
+
+# Credits
+key.txt
+
+# inter-steps
+*.ipynb
+augmentation/
+
+# tune
+record.md
+scripts/local_train.sh

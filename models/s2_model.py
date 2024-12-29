@@ -10,8 +10,7 @@ from .ResUnet import ResUnet
 from torchmetrics import MeanSquaredError
 from torchmetrics.regression import R2Score
 from torchmetrics.functional import r2_score
-from torchmetrics.classification import MulticlassF1Score
-from torchmetrics.classification import MulticlassAccuracy
+from torchmetrics.classification import MulticlassF1Score, ConfusionMatrix, MulticlassAccuracy
 
 
 # Updating UNet to incorporate residual connections and MF module
@@ -41,16 +40,10 @@ class Model(pl.LightningModule):
 
         if self.use_mf:
             # MF Module for seasonal fusion (each season has `n_bands` channels)
-            self.mf_module = MF(
-                mode="img", channels=self.n_bands, spatial_att=self.spatial_attention
-            )
-            total_input_channels = (
-                64  # MF module outputs 64 channels after processing four seasons
-            )
+            self.mf_module = MF(channels=self.n_bands, spatial_att=self.spatial_attention)
+            total_input_channels = 64  # MF module outputs 64 channels after processing four seasons
         else:
-            total_input_channels = (
-                self.n_bands * 4
-            )  # If no MF module, concatenating all seasons directly
+            total_input_channels = self.n_bands * 4  # If no MF module, concatenating all seasons directly
 
         # Define the U-Net architecture with or without Residual connections
         if self.use_residual:
@@ -113,6 +106,9 @@ class Model(pl.LightningModule):
         )
         self.test_oa = MulticlassAccuracy(
             num_classes=self.config["n_classes"], average="micro"
+        )
+        self.confmat = ConfusionMatrix(
+            task="multiclass", num_classes=self.config["n_classes"]
         )
 
         # Optimizer and scheduler settings
@@ -184,8 +180,6 @@ class Model(pl.LightningModule):
         Returns:
         - loss: The computed masked loss.
         """
-        # outputs = F.softmax(outputs, dim=1)
-
         valid_outputs, valid_targets = self.apply_mask(
             outputs, targets, masks, multi_class=True
         )
@@ -197,22 +191,19 @@ class Model(pl.LightningModule):
             self.true_labels.append(valid_targets)
         # Round outputs to two decimal place
         valid_outputs = torch.round(valid_outputs, decimals=1)
-
+        
         # Convert outputs and targets to leading class labels by taking argmax
         pred_labels = torch.argmax(outputs, dim=1)
         true_labels = torch.argmax(targets, dim=1)
+        
         # Apply mask
         valid_preds, valid_true = self.apply_mask(
             pred_labels, true_labels, masks, multi_class=False
         )
 
-        # Renormalize after rounding to ensure outputs sum to 1 #TODO: validate
-        # rounded_outputs = rounded_outputs / rounded_outputs.sum(dim=1, keepdim=True).clamp(min=1e-6)
-
         # Calculate R² and F1 score for valid pixels
         if stage == "train":
             r2 = self.train_r2(valid_outputs.view(-1), valid_targets.view(-1))
-            f1 = self.train_f1(valid_preds, valid_true)
         elif stage == "val":
             r2 = self.val_r2(valid_outputs.view(-1), valid_targets.view(-1))
             f1 = self.val_f1(valid_preds, valid_true)
@@ -251,14 +242,15 @@ class Model(pl.LightningModule):
             on_step=True,
             on_epoch=True,
         )
-        self.log(
-            f"{stage}_f1",
-            f1,
-            logger=True,
-            sync_dist=sync_state,
-            on_step=True,
-            on_epoch=(stage != "train"),
-        )
+        if stage != "train":
+            self.log(
+                f"{stage}_f1",
+                f1,
+                logger=True,
+                sync_dist=sync_state,
+                on_step=True,
+                on_epoch=(stage != "train"),
+            )
         if stage == "test":
             self.log(
                 "test_oa",
@@ -309,6 +301,13 @@ class Model(pl.LightningModule):
                 "true_labels_all": true_labels_all,
             }
 
+            print(f"F1 Score:{self.val_f1.compute()}")
+            print("Confusion Matrix at best R²:")
+            cm = self.confmat(
+                torch.argmax(preds_all, dim=1), torch.argmax(true_labels_all, dim=1)
+            )
+            print(cm)
+            print(f"R2 Score:{sys_r2}")
         # Clear buffers for the next epoch
         self.val_preds.clear()
         self.true_labels.clear()
@@ -319,7 +318,7 @@ class Model(pl.LightningModule):
         outputs = self(inputs)  # Forward pass
 
         return self.compute_loss_and_metrics(outputs, targets, masks, stage="test")
-
+    
     def configure_optimizers(self):
         # Choose the optimizer based on input parameter
         if self.optimizer_type == "adam":

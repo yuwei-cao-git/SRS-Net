@@ -1,10 +1,8 @@
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
-from pytorch_lightning.utilities.model_summary import ModelSummary
 from models.s2_model import Model
 from dataset.s2 import TreeSpeciesDataModule
-import os
 
 
 def train(config):
@@ -34,7 +32,7 @@ def train(config):
         mode="min",  # We want to minimize the validation loss
     )
 
-    wandb_logger = WandbLogger(name=config["log_name"])
+    wandb_logger = WandbLogger(name=config["log_name"], save_dir=config["save_dir"])
 
     # Create a PyTorch Lightning Trainer
     trainer = Trainer(
@@ -53,6 +51,3 @@ def train(config):
 
     # Test the model after training
     trainer.test(model, data_module)
-
-    # Load the saved model
-    # model = UNetLightning.load_from_checkpoint("final_model.ckpt")

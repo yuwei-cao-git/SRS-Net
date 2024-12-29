@@ -14,8 +14,8 @@ def train_func(config):
     seed_everything(1)
 
     wandb_logger = WandbLogger(
-        project="M3F-Net-img",
-        group="v3",
+        project="SRS-Net",
+        group="v0",
         name=f"trial_{tune.Trainable().trial_id}",
         save_dir=config["save_dir"],
         log_model=True,
@@ -68,16 +68,6 @@ def train_func(config):
 
     # Test the model after training
     trainer.test(model, data_module)
-
-    # Save the best model after training
-    trainer.save_checkpoint(
-        os.path.join(
-            config["save_dir"],
-            f"trial_{tune.Trainable().trial_id}",
-            "checkpoints",
-            "final_model.pt",
-        )
-    )
 
     time.sleep(5)  # Wait for wandb to finish logging
     wandb.finish()

@@ -7,8 +7,6 @@ import os
 import torch
 import argparse
 
-# local machine: wandb login --cloud --relogin
-
 # Create argument parser
 parser = argparse.ArgumentParser(description="Train model with given parameters")
 parser.add_argument("--data_dir", type=str, default=None, help="path to data dir")
@@ -24,14 +22,14 @@ def main(args):
         if args.data_dir is not None
         else os.path.join(os.getcwd(), "data")
     )
-    save_dir = os.path.join(os.getcwd(), "img_logs", "ray_results")
+    save_dir = os.path.join(os.getcwd(), "tune_img", "ray_results")
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     config = {
         "mode": "img",
         "data_dir": data_dir,
         "learning_rate": tune.loguniform(1e-5, 1e-3),
-        "batch_size": tune.choice([32, 64]),
+        "batch_size": tune.choice([16, 32]),
         "optimizer": tune.choice(["adam", "sgd", "adamW"]),
         "epochs": args.max_epochs,
         "gpus": torch.cuda.device_count(),
@@ -65,8 +63,8 @@ def main(args):
                 log_to_file=("my_stdout.log", "my_stderr.log"),
                 callbacks=[
                     WandbLoggerCallback(
-                        project="M3F-Net-img",
-                        group="v2",
+                        project="SRS-Net",
+                        group="v0",
                         api_key=os.environ["WANDB_API_KEY"],
                         log_config=True,
                         save_checkpoints=True,
@@ -87,14 +85,5 @@ def main(args):
 
 
 if __name__ == "__main__":
-    """
-    mock_api = True
-    if mock_api:
-        os.environ.setdefault("WANDB_MODE", "disabled")
-        os.environ.setdefault("WANDB_API_KEY", "abcd")
-        ray.init(
-            runtime_env={"env_vars": {"WANDB_MODE": "disabled", "WANDB_API_KEY": "abcd"}}
-        )
-    """
     params = parser.parse_args()
     main(params)

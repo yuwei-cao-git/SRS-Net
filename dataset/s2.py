@@ -23,14 +23,13 @@ def load_tile_names(file_path):
 
 
 class TreeSpeciesDataset(Dataset):
-    def __init__(self, tile_names, processed_dir, datasets, mode):
+    def __init__(self, tile_names, processed_dir, datasets):
         """
         Args:
             tile_names (list): List of tile filenames to load.
             processed_dir (str): Base directory containing the processed data folders.
             datasets (list): List of dataset folder names to include (e.g., ['s2/spring', 's2/summer',...]).
         """
-        self.mode = mode
         self.tile_names = tile_names
         self.processed_dir = processed_dir
         self.datasets = datasets  # List of dataset folder names
@@ -39,10 +38,7 @@ class TreeSpeciesDataset(Dataset):
         return len(self.tile_names)
 
     def __getitem__(self, idx):
-        if self.mode == "img":
-            tile_name = self.tile_names[idx].split(" ")[0] + ".tif"
-        else:
-            tile_name = self.tile_names[idx]
+        tile_name = self.tile_names[idx].split(" ")[0] + ".tif"
         input_data_list = []
 
         # Load data from each dataset (spring, summer, fall, winter, etc.)
@@ -120,20 +116,17 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
         self.train_dataset = TreeSpeciesDataset(
             self.tile_names["train"],
             self.processed_dir,
-            self.datasets_to_use,
-            self.config["mode"],
+            self.datasets_to_use
         )
         self.val_dataset = TreeSpeciesDataset(
             self.tile_names["val"],
             self.processed_dir,
-            self.datasets_to_use,
-            self.config["mode"],
+            self.datasets_to_use
         )
         self.test_dataset = TreeSpeciesDataset(
             self.tile_names["test"],
             self.processed_dir,
-            self.datasets_to_use,
-            self.config["mode"],
+            self.datasets_to_use
         )
 
     def train_dataloader(self):
@@ -147,10 +140,10 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
 
     def val_dataloader(self):
         return DataLoader(
-            self.val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=8
+            self.val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=8, drop_last=False
         )
 
     def test_dataloader(self):
         return DataLoader(
-            self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=8
+            self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=8, drop_last=False
         )

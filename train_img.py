@@ -10,14 +10,7 @@ def main():
     parser = argparse.ArgumentParser(description="Train model with given parameters")
 
     # Add arguments
-    parser.add_argument(
-        "--mode",
-        type=str,
-        choices=["img", "pts", "both"],
-        default="img",
-        help="Mode to run the model: 'img', 'pts', or 'both'",
-    )
-    # parser.add_argument('--data_dir', type=str, default='./data', help="path to data dir")
+    parser.add_argument('--data_dir', type=str, default=None, help="path to data dir")
     parser.add_argument("--n_bands", type=int, default=9, help="number bands per tile")
     parser.add_argument("--n_classes", type=int, default=9, help="number classes")
     parser.add_argument(
@@ -34,7 +27,7 @@ def main():
         help="Resolution to use for the data",
     )
     parser.add_argument(
-        "--epochs", type=int, default=100, help="Number of epochs to train the model"
+        "--epochs", type=int, default=200, help="Number of epochs to train the model"
     )
     parser.add_argument(
         "--batch_size", type=int, default=32, help="Number of epochs to train the model"
@@ -57,15 +50,13 @@ def main():
 
     # Parse arguments
     params = vars(parser.parse_args())
-    params["data_dir"] = (
-        "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/processed"
-    )
+    params["data_dir"] = (params["data_dir"] if params["data_dir"] is not None else "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/processed")
     params["save_dir"] = os.path.join(os.getcwd(), "img_logs", params["log_name"])
     if not os.path.exists(params["save_dir"]):
         os.makedirs(params["save_dir"])
     print(params)
 
-    wandb.init(project="M3F-Net")
+    wandb.init(project="SRS-Net")
     # Call the train function with parsed arguments
     train(params)
 

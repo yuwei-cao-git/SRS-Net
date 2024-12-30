@@ -38,6 +38,7 @@ class TreeSpeciesDataset(Dataset):
         return len(self.tile_names)
 
     def __getitem__(self, idx):
+        # tile_name = self.tile_names[idx].split(" ")[0] + ".tif"
         tile_name = self.tile_names[idx]
         input_data_list = []
 

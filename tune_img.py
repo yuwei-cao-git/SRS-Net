@@ -47,7 +47,7 @@ def main(args):
     }
     try:
         # wandb.init(project='M3F-Net-ray')
-        scheduler = ASHAScheduler(max_t=1, grace_period=1, reduction_factor=2)
+        scheduler = ASHAScheduler(max_t=100, grace_period=10, reduction_factor=3)
         trainable_with_gpu = tune.with_resources(
             train_func, {"gpu": config.get("gpus", 1)}
         )

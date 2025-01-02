@@ -15,7 +15,7 @@ def train_func(config):
 
     wandb_logger = WandbLogger(
         project="SRS-Net",
-        group="v0",
+        group="v1",
         name=f"trial_{tune.Trainable().trial_id}",
         save_dir=config["save_dir"],
         log_model=True,

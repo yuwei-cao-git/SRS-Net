@@ -28,7 +28,7 @@ def main(args):
     config = {
         "mode": "img",
         "data_dir": data_dir,
-        "learning_rate": tune.loguniform(1e-5, 1e-3),
+        "learning_rate": tune.choice([1e-3, 1e-4, 5e-4, 1e-5]),
         "batch_size": tune.choice([16, 32]),
         "optimizer": tune.choice(["adam", "sgd", "adamW"]),
         "epochs": args.max_epochs,
@@ -43,6 +43,7 @@ def main(args):
         "transforms": tune.choice(["random", "compose", "None"]),
         "save_dir": save_dir,
         "n_samples": 30,
+        "seasons": tune.choice(["spring", "summer", "fall", "winter", "2seasons", "4seasons"]),
     }
     try:
         # wandb.init(project='M3F-Net-ray')
@@ -64,7 +65,7 @@ def main(args):
                 callbacks=[
                     WandbLoggerCallback(
                         project="SRS-Net",
-                        group="v0",
+                        group="v1",
                         api_key=os.environ["WANDB_API_KEY"],
                         log_config=True,
                         save_checkpoints=True,

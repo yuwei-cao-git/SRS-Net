@@ -100,12 +100,22 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
             "val": load_tile_names(join(self.processed_dir, "dataset/val_tiles.txt")),
             "test": load_tile_names(join(self.processed_dir, "dataset/test_tiles.txt")),
         }
-        self.datasets_to_use = [
-            "rmf_s2/spring/tiles_128",
-            "rmf_s2/summer/tiles_128",
-            "rmf_s2/fall/tiles_128",
-            "rmf_s2/winter/tiles_128",
-        ]
+        
+        if self.config["season"] == "2seasons":
+            self.datasets_to_use = [
+                "rmf_s2/summer/tiles_128",
+                "rmf_s2/fall/tiles_128",
+            ]
+        elif self.config["season"] != "4seasons":
+            self.datasets_to_use = [
+                "rmf_s2/spring/tiles_128",
+                "rmf_s2/summer/tiles_128",
+                "rmf_s2/fall/tiles_128",
+                "rmf_s2/winter/tiles_128",
+            ]
+        else:
+            self.datasets_to_use = [
+            f"rmf_s2/{self.season}/tiles_128",]
 
         self.batch_size = config["batch_size"]
 

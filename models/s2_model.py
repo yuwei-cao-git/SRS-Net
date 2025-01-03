@@ -10,7 +10,11 @@ from .ResUnet import ResUnet
 from torchmetrics import MeanSquaredError
 from torchmetrics.regression import R2Score
 from torchmetrics.functional import r2_score
-from torchmetrics.classification import MulticlassF1Score, ConfusionMatrix, MulticlassAccuracy
+from torchmetrics.classification import (
+    MulticlassF1Score,
+    ConfusionMatrix,
+    MulticlassAccuracy,
+)
 
 
 # Updating UNet to incorporate residual connections and MF module
@@ -33,18 +37,35 @@ class Model(pl.LightningModule):
         self.spatial_attention = self.config["spatial_attention"]
         self.use_residual = self.config["use_residual"]
         self.aug = self.config["transforms"]
+        self.season = self.config["season"]
+        self.num_season = 1
+        if self.config["season"] == "2seasons":
+            self.num_season = 2
+        if self.config["season"] == "4seasons":
+            self.num_season = 4
         if self.config["resolution"] == 10:
             self.n_bands = 12
         else:
             self.n_bands = 9
-
-        if self.use_mf:
-            # MF Module for seasonal fusion (each season has `n_bands` channels)
-            self.mf_module = MF(channels=self.n_bands, spatial_att=self.spatial_attention)
-            total_input_channels = 64  # MF module outputs 64 channels after processing four seasons
+        if self.num_season != 1:
+            if self.use_mf:
+                # MF Module for seasonal fusion (each season has `n_bands` channels)
+                self.mf_module = MF(
+                    channels=self.n_bands,
+                    seasons=self.num_season,
+                    spatial_att=self.spatial_attention,
+                )
+                total_input_channels = (
+                    64  # MF module outputs 64 channels after processing four seasons
+                )
+            else:
+                total_input_channels = (
+                    self.n_bands * self.num_season
+                )  # If no MF module, concatenating all seasons directly
+                self.spatial_attention = False
         else:
-            total_input_channels = self.n_bands * 4  # If no MF module, concatenating all seasons directly
-
+            total_input_channels = self.n_bands
+            self.use_mf = False
         # Define the U-Net architecture with or without Residual connections
         if self.use_residual:
             # Using ResUNet
@@ -191,11 +212,11 @@ class Model(pl.LightningModule):
             self.true_labels.append(valid_targets)
         # Round outputs to two decimal place
         valid_outputs = torch.round(valid_outputs, decimals=1)
-        
+
         # Convert outputs and targets to leading class labels by taking argmax
         pred_labels = torch.argmax(outputs, dim=1)
         true_labels = torch.argmax(targets, dim=1)
-        
+
         # Apply mask
         valid_preds, valid_true = self.apply_mask(
             pred_labels, true_labels, masks, multi_class=False
@@ -318,7 +339,7 @@ class Model(pl.LightningModule):
         outputs = self(inputs)  # Forward pass
 
         return self.compute_loss_and_metrics(outputs, targets, masks, stage="test")
-    
+
     def configure_optimizers(self):
         # Choose the optimizer based on input parameter
         if self.optimizer_type == "adam":

@@ -136,13 +136,15 @@ class ChannelSpatialSELayer3D(nn.Module):
 
 class MF(nn.Module):  # Multi-Feature (MF) module for seasonal attention-based fusion
     def __init__(
-        self, channels=12, reduction=16, spatial_att=False
+        self, channels=12, reduction=16, seasons=4, spatial_att=False
     ):  # Each season has 13 channels
         super(MF, self).__init__()
         # Channel attention for each season (spring, summer, autumn, winter)
         self.channels = channels
         self.reduction = reduction
+        self.seasons = seasons
         self.spatial_attention = spatial_att
+        self.total_channels = 64 if self.seasons == 4 else 32
         self.mask_map_spring = nn.Conv2d(self.channels, 1, 1, 1, 0, bias=True)
         self.mask_map_summer = nn.Conv2d(self.channels, 1, 1, 1, 0, bias=True)
         self.mask_map_autumn = nn.Conv2d(self.channels, 1, 1, 1, 0, bias=True)
@@ -156,39 +158,39 @@ class MF(nn.Module):  # Multi-Feature (MF) module for seasonal attention-based f
 
         # Final SE Block for channel attention across all seasons
         if self.spatial_attention:
-            self.se = ChannelSpatialSELayer3D(16, reduction_ratio=2)
+            self.se = ChannelSpatialSELayer3D(self.total_channels, reduction_ratio=2)
         else:
             self.se = SE_Block(
-                64, self.reduction
+                self.total_channels, self.reduction
             )  # Since we have 4 seasons with 16 channels each, we get a total of 64 channels
 
     def forward(self, x):  # x is a list of 4 inputs (spring, summer, autumn, winter)
-        spring, summer, autumn, winter = x
-
+        if self.seasons == 4:
+            spring, summer, autumn, winter = x
+            spring_mask = torch.mul(self.mask_map_spring(spring).repeat(1, self.channels, 1, 1), spring)
+            winter_mask = torch.mul(self.mask_map_winter(winter).repeat(1, self.channels, 1, 1), winter)
+            spring_features = self.bottleneck_spring(spring_mask)
+            winter_features = self.bottleneck_winter(winter_mask)
+        else:
+            summer, autumn = x
+        
         # Apply attention maps
-        spring_mask = torch.mul(
-            self.mask_map_spring(spring).repeat(1, self.channels, 1, 1), spring
-        )
-        summer_mask = torch.mul(
-            self.mask_map_summer(summer).repeat(1, self.channels, 1, 1), summer
-        )
-        autumn_mask = torch.mul(
-            self.mask_map_autumn(autumn).repeat(1, self.channels, 1, 1), autumn
-        )
-        winter_mask = torch.mul(
-            self.mask_map_winter(winter).repeat(1, self.channels, 1, 1), winter
-        )
-
+        summer_mask = torch.mul(self.mask_map_summer(summer).repeat(1, self.channels, 1, 1), summer)
+        autumn_mask = torch.mul(self.mask_map_autumn(autumn).repeat(1, self.channels, 1, 1), autumn)
+        
         # Apply bottleneck layers
-        spring_features = self.bottleneck_spring(spring_mask)
         summer_features = self.bottleneck_summer(summer_mask)
         autumn_features = self.bottleneck_autumn(autumn_mask)
-        winter_features = self.bottleneck_winter(winter_mask)
 
         # Concatenate along a new depth dimension (D)
-        combined_features = torch.stack(
-            [spring_features, summer_features, autumn_features, winter_features], dim=2
-        )  # Shape: (B, 16, D=4, H, W)
+        if self.seasons == 4:
+            combined_features = torch.stack(
+                [spring_features, summer_features, autumn_features, winter_features], dim=2
+            )  # Shape: (B, 16, D=4, H, W)
+        else:
+            combined_features = torch.stack(
+                [summer_features, autumn_features], dim=2
+            )  # Shape: (B, 16, D=2, H, W)
 
         # Apply SE Block for channel-wise attention
         out = self.se(combined_features)  # SE_Block takes 4D input

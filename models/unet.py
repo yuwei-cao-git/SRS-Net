@@ -4,7 +4,7 @@ from .blocks import DoubleConv, Down, Up, OutConv
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels=52, n_classes=9, bilinear=True):
+    def __init__(self, n_channels, n_classes=9, bilinear=True):
         super(UNet, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
@@ -33,5 +33,5 @@ class UNet(nn.Module):
         x = self.up3(x, x2)  # Up 3
         x = self.up4(x, x1)  # Up 4
         logits = self.outc(x)  # Output layer
-        preds = F.softmax(logits, dim=1) 
+        preds = F.softmax(logits, dim=1)
         return preds, x5

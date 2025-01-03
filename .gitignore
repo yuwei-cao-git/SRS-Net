@@ -20,7 +20,7 @@ vis/
 *.log
 *.ckpt
 wandb/
-
+tune_img/
 *.wandb
 
 # Credits

@@ -43,7 +43,7 @@ def main(args):
         "transforms": tune.choice(["random", "compose", "None"]),
         "save_dir": save_dir,
         "n_samples": 30,
-        "seasons": tune.choice(["spring", "summer", "fall", "winter", "2seasons", "4seasons"]),
+        "season": tune.choice(["spring", "summer", "fall", "winter", "2seasons", "4seasons"]),
     }
     try:
         # wandb.init(project='M3F-Net-ray')

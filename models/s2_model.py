@@ -157,7 +157,9 @@ class Model(pl.LightningModule):
         )
         # Compute RMSE
         rmse = torch.sqrt(loss)
-        self.log("val_loss", loss, sync_dist=True, on_step=True, on_epoch=True)
+        self.log(
+            "val_loss", loss, logger=True, sync_dist=True, on_step=True, on_epoch=True
+        )
         self.log("val_rmse", rmse, sync_dist=True, on_step=False, on_epoch=True)
 
         # compute metrics
@@ -184,14 +186,12 @@ class Model(pl.LightningModule):
         rmse = torch.sqrt(loss)
         self.log("test_rmse", rmse, sync_dist=True, on_step=False, on_epoch=True)
 
-        metrics = self.test_metrics(valid_outputs, valid_targets)
+        self.test_metrics.update(valid_outputs, valid_targets)
 
-        self.log_metrics(metrics)
-        cm = self.confmat(
-            valid_outputs["test_Classification"], valid_targets["test_Classification"]
-        )
-        print("Confusion Matrix for test data:")
-        print(cm)
+    def on_test_epoch_end(self):
+        output = self.test_metrics.compute()
+        # Log each metric individually
+        self.log_metrics(output)
 
     def log_metrics(self, ouput_metrics):
         for task, metrics in ouput_metrics.items():
@@ -204,12 +204,16 @@ class Model(pl.LightningModule):
                     ):
                         metric_value = metric_value.item()  # Convert tensor to scalar
                     self.log(
-                        full_metric_name, metric_value, sync_dist=True, logger=True
+                        full_metric_name,
+                        metric_value,
+                        sync_dist=True,
+                        logger=True,
+                        on_epoch=True,
                     )
             else:  # Handle non-nested metrics (if any exist)
                 if isinstance(metrics, torch.Tensor) and metrics.numel() == 1:
                     metrics = metrics.item()
-                self.log(task, metrics, sync_dist=True)
+                    self.log(task, metrics, sync_dist=True)
 
     def configure_optimizers(self):
         # Choose the optimizer based on input parameter

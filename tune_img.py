@@ -96,7 +96,7 @@ def main(args):
         results = tuner.fit()
         print(
             "Best trial config: {}".format(
-                results.get_best_result("val_r2", "max").config
+                results.get_best_result("val_Regression_R2Score", "max").config
             )
         )
     except Exception as e:

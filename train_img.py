@@ -46,7 +46,7 @@ def main():
         action="store_true",
         help="Use spatial attention in mf fusion",
     )
-    parser.add_argument("--transforms", action="store_true")
+    parser.add_argument("--transforms", default="compose")
     parser.add_argument("--gpus", type=int, default=torch.cuda.device_count())
     parser.add_argument("--season", default="4seasons", help="season(s) for training")
     parser.add_argument("--loss", default="mse")
@@ -76,7 +76,7 @@ def main():
         0.42019516,
     ]
     prop_weights = torch.from_numpy(np.array(prop_weights)).float()
-    params["prop_weights"] = prop_weights
+    params["prop_weights"] = prop_weights if params["weighted_loss"] else torch.ones(9)
 
     if not os.path.exists(params["save_dir"]):
         os.makedirs(params["save_dir"])

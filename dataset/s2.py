@@ -5,6 +5,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
 from os.path import join
+import torchvision.transforms as transforms
 
 
 def load_tile_names(file_path):
@@ -23,7 +24,7 @@ def load_tile_names(file_path):
 
 
 class TreeSpeciesDataset(Dataset):
-    def __init__(self, tile_names, processed_dir, datasets):
+    def __init__(self, tile_names, processed_dir, datasets, augment="None"):
         """
         Args:
             tile_names (list): List of tile filenames to load.
@@ -33,6 +34,39 @@ class TreeSpeciesDataset(Dataset):
         self.tile_names = tile_names
         self.processed_dir = processed_dir
         self.datasets = datasets  # List of dataset folder names
+        self.augment = augment
+
+        # Define the transformation pipeline
+        if self.augment == "compose":
+            self.transform = transforms.Compose(
+                [
+                    transforms.RandomCrop(size=(128, 128)),
+                    transforms.RandomHorizontalFlip(p=0.5),
+                    transforms.RandomPerspective(distortion_scale=0.6, p=0.5),
+                    transforms.RandomRotation(degrees=(0, 180)),
+                    transforms.RandomAffine(
+                        degrees=(30, 70), translate=(0.1, 0.3), scale=(0.5, 0.75)
+                    ),
+                ]
+            )
+        elif self.augment == "random":
+            self.transform = transforms.RandomApply(
+                torch.nn.ModuleList(
+                    [
+                        transforms.RandomCrop(size=(128, 128)),
+                        transforms.RandomHorizontalFlip(p=0.5),
+                        transforms.ToDtype(torch.float32, scale=True),
+                        transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
+                        transforms.RandomRotation(degrees=(0, 180)),
+                        transforms.RandomAffine(
+                            degrees=(30, 70), translate=(0.1, 0.3), scale=(0.5, 0.75)
+                        ),
+                    ]
+                ),
+                p=0.3,
+            )
+        else:
+            self.transform = None
 
     def __len__(self):
         return len(self.tile_names)
@@ -40,6 +74,9 @@ class TreeSpeciesDataset(Dataset):
     def __getitem__(self, idx):
         # tile_name = self.tile_names[idx].split(" ")[0] + ".tif"
         tile_name = self.tile_names[idx]
+        if not tile_name.endswith(".tif"):
+            tile_name = tile_name.strip()
+            tile_name += ".tif"
         input_data_list = []
 
         # Load data from each dataset (spring, summer, fall, winter, etc.)
@@ -47,8 +84,12 @@ class TreeSpeciesDataset(Dataset):
             dataset_path = os.path.join(self.processed_dir, dataset, tile_name)
             with rasterio.open(dataset_path) as src:
                 input_data = src.read()  # Read the bands (num_bands, H, W)
+                tensor_data = torch.from_numpy(input_data).float()
+                # Apply augmentation if enabled
+                if self.transform:
+                    tensor_data = self.transform(tensor_data)
                 input_data_list.append(
-                    torch.from_numpy(input_data).float()
+                    tensor_data
                 )  # Append each season's tensor to the list
 
         # Load the corresponding label (target species composition)
@@ -126,8 +167,21 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
         """
         # Create datasets for train, validation, and test
         self.train_dataset = TreeSpeciesDataset(
-            self.tile_names["train"], self.processed_dir, self.datasets_to_use
+            self.tile_names["train"],
+            self.processed_dir,
+            self.datasets_to_use,
+            augment=None,
         )
+        if self.config["transforms"] != "None":
+            aug_train_dataset = TreeSpeciesDataset(
+                self.tile_names["train"],
+                self.processed_dir,
+                self.datasets_to_use,
+                augment=self.config["transforms"],
+            )
+            self.train_dataset = torch.utils.data.ConcatDataset(
+                [self.train_dataset, aug_train_dataset]
+            )
         self.val_dataset = TreeSpeciesDataset(
             self.tile_names["val"], self.processed_dir, self.datasets_to_use
         )

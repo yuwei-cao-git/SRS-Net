@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchmetrics import MeanSquaredError
-from torchmetrics import MeanAbsoluteError
+from torchmetrics.regression import MeanAbsoluteError
 from torchmetrics.regression import WeightedMeanAbsolutePercentageError
 
 
@@ -46,9 +45,19 @@ def apply_mask(outputs, targets, mask, multi_class=True, keep_shp=False):
         return valid_outputs, valid_targets
 
 
+class MSELoss(nn.Module):
+    def __init__(self):
+        super(MSELoss, self).__init__()
+
+    def forward(self, y_pred, y_true):
+        squared_errors = torch.square(y_pred - y_true)
+        loss = torch.mean(squared_errors)
+        return loss
+
+
 # MSE loss
 def calc_mse_loss(valid_outputs, valid_targets):
-    mse = MeanSquaredError()
+    mse = MSELoss()
     loss = mse(valid_outputs, valid_targets)
 
     return loss
@@ -107,23 +116,14 @@ def calc_mae_loss(valid_outputs, valid_targets):
     return loss
 
 
-# MAPE loss
-def calc_mape_loss(valid_outputs, valid_targets):
-    mape = WeightedMeanAbsolutePercentageError()
-    loss = mape(valid_outputs, valid_targets)
-
-    return loss
-
-
 # loss for leading species classification
-def weighted_categorical_crossentropy(y_true, y_pred, weights, alpha_leading):
-    # y_true and y_pred are tensors of shape (batch_size, num_classes)
-    # weights is a tensor of shape (num_classes,)
-    loss = -torch.sum(weights * y_true * torch.log(y_pred + 1e-8), dim=1)
-    return torch.mean(loss)
+def cal_leading_loss(y_true, y_pred, alpha_leading):
+    correct = (y_pred.view(-1) == y_true.view(-1)).float()
+    loss_pixel_leads = 1 - correct.mean()  # 1 - accuracy as pseudo-loss
+    return loss_pixel_leads * alpha_leading
 
 
-def mask_output(y_pred, y_true, mask):
+def mask_output(y_pred, y_true, mask, stage):
     valid_outputs, valid_targets = apply_mask(y_pred, y_true, mask, multi_class=True)
     valid_outputs = torch.round(valid_outputs, decimals=1)
 
@@ -135,8 +135,14 @@ def mask_output(y_pred, y_true, mask):
     valid_preds, valid_true = apply_mask(
         pred_labels, true_labels, mask, multi_class=False
     )
-    targets = {"Classification": valid_true, "Regression": valid_targets.view(-1)}
-    preds = {"Classification": valid_preds, "Regression": valid_outputs.view(-1)}
+    targets = {
+        f"{stage}_Classification": valid_true,
+        f"{stage}_Regression": valid_targets.view(-1),
+    }
+    preds = {
+        f"{stage}_Classification": valid_preds,
+        f"{stage}_Regression": valid_outputs.view(-1),
+    }
 
     return preds, targets
 
@@ -149,9 +155,7 @@ def calc_loss(loss_func_name, y_pred, y_true, mask, weights):
         return calc_rwmse_loss(valid_outputs, valid_targets, weights)
     elif loss_func_name == "mse":
         return calc_mse_loss(valid_outputs, valid_targets)
-    elif loss_func_name == "kl_loss":
+    elif loss_func_name == "kl":
         return weighted_kl_divergence(valid_targets, valid_outputs, weights)
     elif loss_func_name == "mae":
         return calc_mae_loss(valid_outputs, valid_targets)
-    else:
-        calc_mape_loss(valid_outputs, valid_targets)

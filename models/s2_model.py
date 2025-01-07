@@ -7,8 +7,7 @@ from .blocks import MF
 from .unet import UNet
 from .ResUnet import ResUnet
 from .loss import calc_loss, mask_output
-from .loss import weighted_categorical_crossentropy
-from torchmetrics import MeanSquaredError
+from .loss import cal_leading_loss
 
 from torchmetrics.classification import ConfusionMatrix
 from torchmetrics.regression import R2Score
@@ -39,7 +38,6 @@ class Model(pl.LightningModule):
         self.use_mf = self.config["use_mf"]
         self.spatial_attention = self.config["spatial_attention"]
         self.use_residual = self.config["use_residual"]
-        self.aug = self.config["transforms"]
         self.loss = self.config["loss"]
         self.leading_loss = self.config["leading_loss"]
         self.season = self.config["season"]
@@ -82,43 +80,10 @@ class Model(pl.LightningModule):
             self.model = UNet(
                 n_channels=total_input_channels, n_classes=self.config["n_classes"]
             )
-        if self.aug == "random":
-            self.transform = transforms.RandomApply(
-                torch.nn.ModuleList(
-                    [
-                        transforms.RandomCrop(size=(128, 128)),
-                        transforms.RandomHorizontalFlip(p=0.5),
-                        transforms.ToDtype(torch.float32, scale=True),
-                        transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
-                        transforms.RandomRotation(degrees=(0, 180)),
-                        transforms.RandomAffine(
-                            degrees=(30, 70), translate=(0.1, 0.3), scale=(0.5, 0.75)
-                        ),
-                    ]
-                ),
-                p=0.3,
-            )
-        else:
-            self.transform = transforms.Compose(
-                [
-                    transforms.RandomCrop(size=(128, 128)),
-                    transforms.RandomHorizontalFlip(p=0.5),
-                    transforms.ToDtype(torch.float32, scale=True),
-                    transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
-                    transforms.RandomRotation(degrees=(0, 180)),
-                    transforms.RandomAffine(
-                        degrees=(30, 70), translate=(0.1, 0.3), scale=(0.5, 0.75)
-                    ),
-                ]
-            )
 
         # Loss function
-        self.mes_loss = MeanSquaredError()
-        self.weights = (
-            self.config["prop_weights"]
-            if self.config["weighted_loss"] is True
-            else torch.ones(9)
-        )
+        self.criterion = nn.MSELoss()
+        self.weights = self.config["prop_weights"]
         # Metrics
         metrics = MultitaskWrapper(
             {
@@ -130,7 +95,9 @@ class Model(pl.LightningModule):
                         num_classes=self.config["n_classes"], average="micro"
                     ),
                 ),
-                "Regression": R2Score(),
+                "Regression": MetricCollection(
+                    R2Score(),
+                ),
             }
         )
         self.train_metrics = metrics.clone(prefix="train_")
@@ -146,9 +113,6 @@ class Model(pl.LightningModule):
         self.scheduler_type = self.config["scheduler"]
 
     def forward(self, inputs):
-        # Optionally pass inputs through MF module
-        if self.aug is not None:
-            inputs = self.transform(inputs)
         if self.use_mf:
             # Apply the MF module first to extract features from input
             fused_features = self.mf_module(inputs)
@@ -165,12 +129,13 @@ class Model(pl.LightningModule):
         self.weights = self.weights.to(outputs.device)
         loss = calc_loss(self.loss, outputs, targets, masks, self.weights)
 
-        valid_outputs, valid_targets = mask_output(outputs, targets, masks)
+        valid_outputs, valid_targets = mask_output(
+            outputs, targets, masks, stage="train"
+        )
         if self.leading_loss:
-            leading_loss = weighted_categorical_crossentropy(
-                valid_targets["Classification"],
-                valid_outputs["Classification"],
-                self.weights,
+            leading_loss = cal_leading_loss(
+                valid_targets["train_Classification"],
+                valid_outputs["train_Classification"],
                 alpha_leading=0.2,
             )
             loss += leading_loss
@@ -180,47 +145,71 @@ class Model(pl.LightningModule):
         # compute metrics
         metrics = self.train_metrics(valid_outputs, valid_targets)
 
-        self.log_dict(metrics)
+        self.log_metrics(metrics)
 
     def validation_step(self, batch, batch_idx):
         inputs, targets, masks = batch
         outputs = self(inputs)  # Forward pass
+        valid_outputs, valid_targets = mask_output(outputs, targets, masks, stage="val")
         # Compute the masked loss
-        loss = calc_loss("mse", outputs, targets)
+        loss = self.criterion(
+            valid_outputs["val_Regression"], valid_targets["val_Regression"]
+        )
         # Compute RMSE
         rmse = torch.sqrt(loss)
         self.log("val_loss", loss, sync_dist=True, on_step=True, on_epoch=True)
         self.log("val_rmse", rmse, sync_dist=True, on_step=False, on_epoch=True)
 
         # compute metrics
-        valid_outputs, valid_targets = mask_output(outputs, targets, masks)
         self.valid_metrics.update(valid_outputs, valid_targets)
 
     def on_validation_epoch_end(self):
         output = self.valid_metrics.compute()
-        self.log_dict(output)
+        # Log each metric individually
+        self.log_metrics(output)
         # remember to reset metrics at the end of the epoch
         self.valid_metrics.reset()
 
     def test_step(self, batch, batch_idx):
         inputs, targets, masks = batch
         outputs = self(inputs)  # Forward pass
+        valid_outputs, valid_targets = mask_output(
+            outputs, targets, masks, stage="test"
+        )
         # Compute the masked loss
-        loss = calc_loss("mse", outputs, targets)
+        loss = self.criterion(
+            valid_outputs["test_Regression"], valid_targets["test_Regression"]
+        )
         # Compute RMSE
         rmse = torch.sqrt(loss)
-        self.log("val_rmse", rmse, sync_dist=True, on_step=False, on_epoch=True)
+        self.log("test_rmse", rmse, sync_dist=True, on_step=False, on_epoch=True)
 
-        # compute metrics
-        valid_outputs, valid_targets = mask_output(outputs, targets, masks)
         metrics = self.test_metrics(valid_outputs, valid_targets)
 
-        self.log_dict(metrics)
+        self.log_metrics(metrics)
         cm = self.confmat(
-            valid_outputs["Classification"], valid_targets["Classification"]
+            valid_outputs["test_Classification"], valid_targets["test_Classification"]
         )
         print("Confusion Matrix for test data:")
         print(cm)
+
+    def log_metrics(self, ouput_metrics):
+        for task, metrics in ouput_metrics.items():
+            if isinstance(metrics, dict):  # Handle nested dictionaries
+                for metric_name, metric_value in metrics.items():
+                    full_metric_name = f"{task}_{metric_name}"
+                    if (
+                        isinstance(metric_value, torch.Tensor)
+                        and metric_value.numel() == 1
+                    ):
+                        metric_value = metric_value.item()  # Convert tensor to scalar
+                    self.log(
+                        full_metric_name, metric_value, sync_dist=True, logger=True
+                    )
+            else:  # Handle non-nested metrics (if any exist)
+                if isinstance(metrics, torch.Tensor) and metrics.numel() == 1:
+                    metrics = metrics.item()
+                self.log(task, metrics, sync_dist=True)
 
     def configure_optimizers(self):
         # Choose the optimizer based on input parameter

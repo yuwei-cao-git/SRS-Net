@@ -6,6 +6,7 @@ from ray.air.integrations.wandb import WandbLoggerCallback
 import os
 import torch
 import argparse
+import numpy as np
 
 # Create argument parser
 parser = argparse.ArgumentParser(description="Train model with given parameters")
@@ -43,8 +44,6 @@ def main(args):
         "learning_rate": tune.choice([1e-3, 1e-4, 5e-4, 1e-5]),
         "batch_size": tune.choice([16, 32]),
         "optimizer": tune.choice(["adam", "sgd", "adamW"]),
-        "weighted_loss": tune.choice([True, False]),
-        "train_weights": class_weights,
         "epochs": args.max_epochs,
         "gpus": torch.cuda.device_count(),
         "use_mf": tune.choice([True, False]),
@@ -56,12 +55,15 @@ def main(args):
         "scheduler": "asha",  # tune.choice(["plateau", "steplr", "cosine"]),
         "transforms": tune.choice(["random", "compose", "None"]),
         "save_dir": save_dir,
-        "n_samples": 30,
+        "n_samples": 40,
         "season": tune.choice(
             ["spring", "summer", "fall", "winter", "2seasons", "4seasons"]
         ),
-        "loss": tune.choice(["mse", "mae", "wmse", "rwmse", "kl", "mape"]),
+        "loss": tune.choice(["mse", "mae", "wmse", "rwmse", "kl"]),
+        "leading_loss": tune.choice([True, False]),
+        "weighted_loss": tune.choice([True, False]),
     }
+    config["prop_weights"] = class_weights if config["weighted_loss"] else torch.ones(9)
     try:
         # wandb.init(project='M3F-Net-ray')
         scheduler = ASHAScheduler(max_t=100, grace_period=10, reduction_factor=3)

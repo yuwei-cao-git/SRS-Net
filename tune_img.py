@@ -14,6 +14,9 @@ parser.add_argument("--data_dir", type=str, default=None, help="path to data dir
 parser.add_argument(
     "--max_epochs", type=int, default=150, help="Number of epochs to train the model"
 )
+parser.add_argument(
+    "--n_samples", type=int, default=40, help="Number of tuning samples"
+)
 
 
 def main(args):
@@ -55,7 +58,7 @@ def main(args):
         "scheduler": "asha",  # tune.choice(["plateau", "steplr", "cosine"]),
         "transforms": tune.choice(["random", "compose", "None"]),
         "save_dir": save_dir,
-        "n_samples": 40,
+        "n_samples": args.n_samples,
         "season": tune.choice(
             ["spring", "summer", "fall", "winter", "2seasons", "4seasons"]
         ),

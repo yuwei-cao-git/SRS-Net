@@ -84,20 +84,11 @@ def calc_wmse_loss(valid_outputs, valid_targets, weights):
 
 
 # Rooted Weighted loss
-class RWMSELoss(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.wmse = WeightedMSELoss()
+def calc_rwmse_loss(valid_outputs, valid_targets, weights):
+    weighted_mse = WeightedMSELoss(weights)
+    loss = weighted_mse(valid_outputs, valid_targets)
 
-    def forward(self, outputs, targets):
-        return torch.sqrt(self.wmse(outputs, targets))
-
-
-def calc_rwmse_loss(valid_outputs, valid_targets):
-    rwmes = RWMSELoss()
-    loss = rwmes(valid_outputs, valid_targets)
-
-    return loss
+    return torch.sqrt(loss)
 
 
 # kl loss
@@ -110,10 +101,9 @@ def weighted_kl_divergence(y_true, y_pred, weights):
 
 # MAE loss
 def calc_mae_loss(valid_outputs, valid_targets):
-    mae = MeanAbsoluteError()
-    loss = mae(valid_outputs, valid_targets)
+    loss = torch.sum(torch.abs(valid_outputs - valid_targets), dim=1)
 
-    return loss
+    return torch.mean(loss)
 
 
 # loss for leading species classification

@@ -51,7 +51,7 @@ def train_func(config):
 
     # Train the model
     trainer.fit(model, data_module)
-
+    """
     # using a pandas DataFrame to recode best results
     if model.best_test_outputs is not None:
         output_dir = os.path.join(
@@ -61,7 +61,7 @@ def train_func(config):
         )
         _ = generate_eva(model, config["classes"], output_dir)
         # wandb_logger.log_text(key="preds", dataframe=sp_df) # WARNING:root:Truncating wandb.Table object to 200000 rows.
-
+    """
     # Report the final metric to Ray Tune
     final_result = trainer.callback_metrics["val_Regression_R2Score"].item()
     train.report({"val_Regression_R2Score": final_result})

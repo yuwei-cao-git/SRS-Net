@@ -55,7 +55,6 @@ class TreeSpeciesDataset(Dataset):
                     [
                         transforms.RandomCrop(size=(128, 128)),
                         transforms.RandomHorizontalFlip(p=0.5),
-                        transforms.ToDtype(torch.float32, scale=True),
                         transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
                         transforms.RandomRotation(degrees=(0, 180)),
                         transforms.RandomAffine(

@@ -15,7 +15,7 @@ def train_func(config):
 
     wandb_logger = WandbLogger(
         project="SRS-Net",
-        group="v1",
+        group="v2",
         name=f"trial_{tune.Trainable().trial_id}",
         save_dir=config["save_dir"],
         log_model=True,
@@ -45,7 +45,7 @@ def train_func(config):
         logger=wandb_logger,
         devices=config.get("gpus", 1),
         num_nodes=1,
-        strategy="ddp",
+        # strategy="ddp",
         callbacks=[checkpoint_callback],
     )
 

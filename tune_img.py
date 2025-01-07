@@ -12,7 +12,7 @@ import numpy as np
 parser = argparse.ArgumentParser(description="Train model with given parameters")
 parser.add_argument("--data_dir", type=str, default=None, help="path to data dir")
 parser.add_argument(
-    "--max_epochs", type=int, default=150, help="Number of epochs to train the model"
+    "--max_epochs", type=int, default=200, help="Number of epochs to train the model"
 )
 parser.add_argument(
     "--n_samples", type=int, default=40, help="Number of tuning samples"
@@ -76,8 +76,8 @@ def main(args):
         tuner = tune.Tuner(
             trainable_with_gpu,
             tune_config=tune.TuneConfig(
-                metric="val_loss",
-                mode="min",
+                metric="val_Regression_R2Score",
+                mode="max",
                 scheduler=scheduler,
                 num_samples=config["n_samples"],
             ),
@@ -87,7 +87,7 @@ def main(args):
                 callbacks=[
                     WandbLoggerCallback(
                         project="SRS-Net",
-                        group="v1",
+                        group="v2",
                         api_key=os.environ["WANDB_API_KEY"],
                         log_config=True,
                         save_checkpoints=True,

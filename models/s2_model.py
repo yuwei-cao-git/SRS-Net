@@ -186,15 +186,11 @@ class Model(pl.LightningModule):
         rmse = torch.sqrt(loss)
         self.log("test_rmse", rmse, sync_dist=True, on_step=False, on_epoch=True)
 
-        self.test_metrics.update(valid_outputs, valid_targets)
-
-    def on_test_epoch_end(self):
-        output = self.test_metrics.compute()
-        # Log each metric individually
+        output = self.test_metrics(valid_outputs, valid_targets)
         self.log_metrics(output)
 
-    def log_metrics(self, ouput_metrics):
-        for task, metrics in ouput_metrics.items():
+    def log_metrics(self, output_metrics):
+        for task, metrics in output_metrics.items():
             if isinstance(metrics, dict):  # Handle nested dictionaries
                 for metric_name, metric_value in metrics.items():
                     full_metric_name = f"{task}_{metric_name}"

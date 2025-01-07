@@ -6,15 +6,18 @@ import torchvision.transforms.v2 as transforms
 from .blocks import MF
 from .unet import UNet
 from .ResUnet import ResUnet
-
+from .loss import calc_loss, mask_output
+from .loss import weighted_categorical_crossentropy
 from torchmetrics import MeanSquaredError
+
+from torchmetrics.classification import ConfusionMatrix
 from torchmetrics.regression import R2Score
-from torchmetrics.functional import r2_score
 from torchmetrics.classification import (
     MulticlassF1Score,
-    ConfusionMatrix,
     MulticlassAccuracy,
 )
+from torchmetrics import MetricCollection
+from torchmetrics.wrappers import MultitaskWrapper
 
 
 # Updating UNet to incorporate residual connections and MF module
@@ -37,6 +40,8 @@ class Model(pl.LightningModule):
         self.spatial_attention = self.config["spatial_attention"]
         self.use_residual = self.config["use_residual"]
         self.aug = self.config["transforms"]
+        self.loss = self.config["loss"]
+        self.leading_loss = self.config["leading_loss"]
         self.season = self.config["season"]
         self.num_season = 1
         if self.config["season"] == "2seasons":
@@ -108,26 +113,29 @@ class Model(pl.LightningModule):
             )
 
         # Loss function
-        self.criterion = MeanSquaredError()
-
+        self.mes_loss = MeanSquaredError()
+        self.weights = (
+            self.config["prop_weights"]
+            if self.config["weighted_loss"] is True
+            else torch.ones(9)
+        )
         # Metrics
-        self.train_r2 = R2Score()
-        self.train_f1 = MulticlassF1Score(
-            num_classes=self.config["n_classes"], average="weighted"
+        metrics = MultitaskWrapper(
+            {
+                "Classification": MetricCollection(
+                    MulticlassF1Score(
+                        num_classes=self.config["n_classes"], average="weighted"
+                    ),
+                    MulticlassAccuracy(
+                        num_classes=self.config["n_classes"], average="micro"
+                    ),
+                ),
+                "Regression": R2Score(),
+            }
         )
-
-        self.val_r2 = R2Score()
-        self.val_f1 = MulticlassF1Score(
-            num_classes=self.config["n_classes"], average="weighted"
-        )
-
-        self.test_r2 = R2Score()
-        self.test_f1 = MulticlassF1Score(
-            num_classes=self.config["n_classes"], average="weighted"
-        )
-        self.test_oa = MulticlassAccuracy(
-            num_classes=self.config["n_classes"], average="micro"
-        )
+        self.train_metrics = metrics.clone(prefix="train_")
+        self.valid_metrics = metrics.clone(prefix="val_")
+        self.test_metrics = metrics.clone(prefix="test_")
         self.confmat = ConfusionMatrix(
             task="multiclass", num_classes=self.config["n_classes"]
         )
@@ -136,12 +144,6 @@ class Model(pl.LightningModule):
         self.optimizer_type = self.config["optimizer"]
         self.learning_rate = self.config["learning_rate"]
         self.scheduler_type = self.config["scheduler"]
-
-        # Containers for validation predictions and true labels
-        self.val_preds = []
-        self.true_labels = []
-        self.best_test_outputs = None
-        self.best_val_metric = None
 
     def forward(self, inputs):
         # Optionally pass inputs through MF module
@@ -156,189 +158,69 @@ class Model(pl.LightningModule):
         logits, _ = self.model(fused_features)
         return logits
 
-    def apply_mask(self, outputs, targets, mask, multi_class=True):
-        """
-        Applies the mask to outputs and targets to exclude invalid data points.
-
-        Args:
-            outputs: Model predictions (batch_size, num_classes, H, W) for images or (batch_size, num_points, num_classes) for point clouds.
-            targets: Ground truth labels (same shape as outputs).
-            mask: Boolean mask indicating invalid data points (True for invalid).
-
-        Returns:
-            valid_outputs: Masked and reshaped outputs.
-            valid_targets: Masked and reshaped targets.
-        """
-        # Expand the mask to match outputs and targets
-        if multi_class:
-            expanded_mask = mask.unsqueeze(1).expand_as(
-                outputs
-            )  # Shape: (batch_size, num_classes, H, W)
-            num_classes = outputs.size(1)
-        else:
-            expanded_mask = mask
-
-        # Apply mask to exclude invalid data points
-        valid_outputs = outputs[~expanded_mask]
-        valid_targets = targets[~expanded_mask]
-        # Reshape to (-1, num_classes)
-        if multi_class:
-            valid_outputs = valid_outputs.view(-1, num_classes)
-            valid_targets = valid_targets.view(-1, num_classes)
-
-        return valid_outputs, valid_targets
-
-    def compute_loss_and_metrics(self, outputs, targets, masks, stage="val"):
-        """
-        Computes the masked loss, R² score, and logs the metrics.
-
-        Args:
-        - outputs: Predicted values (batch_size, num_channels, H, W)
-        - targets: Ground truth values (batch_size, num_channels, H, W)
-        - masks: Boolean mask indicating NoData pixels (batch_size, H, W)
-        - stage: One of 'train', 'val', or 'test', used for logging purposes.
-
-        Returns:
-        - loss: The computed masked loss.
-        """
-        valid_outputs, valid_targets = self.apply_mask(
-            outputs, targets, masks, multi_class=True
-        )
-
-        # Compute the masked loss
-        loss = self.criterion(valid_outputs, valid_targets)
-        if stage == "val":
-            self.val_preds.append(valid_outputs)
-            self.true_labels.append(valid_targets)
-        # Round outputs to two decimal place
-        valid_outputs = torch.round(valid_outputs, decimals=1)
-
-        # Convert outputs and targets to leading class labels by taking argmax
-        pred_labels = torch.argmax(outputs, dim=1)
-        true_labels = torch.argmax(targets, dim=1)
-
-        # Apply mask
-        valid_preds, valid_true = self.apply_mask(
-            pred_labels, true_labels, masks, multi_class=False
-        )
-
-        # Calculate R² and F1 score for valid pixels
-        if stage == "train":
-            r2 = self.train_r2(valid_outputs.view(-1), valid_targets.view(-1))
-        elif stage == "val":
-            r2 = self.val_r2(valid_outputs.view(-1), valid_targets.view(-1))
-            f1 = self.val_f1(valid_preds, valid_true)
-        else:
-            r2 = self.test_r2(valid_outputs.view(-1), valid_targets.view(-1))
-            f1 = self.test_f1(valid_preds, valid_true)
-            oa = self.test_oa(valid_preds, valid_true)
-
-        # Compute RMSE
-        rmse = torch.sqrt(loss)
-
-        # Log val_loss if in validation stage for ModelCheckpoint
-        sync_state = True
-        self.log(
-            f"{stage}_loss",
-            loss,
-            logger=True,
-            sync_dist=sync_state,
-            on_step=True,
-            on_epoch=True,
-        )
-        self.log(
-            f"{stage}_rmse",
-            rmse,
-            logger=True,
-            sync_dist=sync_state,
-            on_step=True,
-            on_epoch=(stage != "train"),
-        )
-        self.log(
-            f"{stage}_r2",
-            r2,
-            logger=True,
-            prog_bar=True,
-            sync_dist=sync_state,
-            on_step=True,
-            on_epoch=True,
-        )
-        if stage != "train":
-            self.log(
-                f"{stage}_f1",
-                f1,
-                logger=True,
-                sync_dist=sync_state,
-                on_step=True,
-                on_epoch=(stage != "train"),
-            )
-        if stage == "test":
-            self.log(
-                "test_oa",
-                oa,
-                logger=True,
-                sync_dist=sync_state,
-                on_epoch=True,
-            )
-
-        return loss
-
     def training_step(self, batch, batch_idx):
         inputs, targets, masks = batch
         outputs = self(inputs)  # Forward pass #[batch_size, n_classes, height, width]
+        # Compute the masked loss
+        self.weights = self.weights.to(outputs.device)
+        loss = calc_loss(self.loss, outputs, targets, masks, self.weights)
 
-        return self.compute_loss_and_metrics(outputs, targets, masks, stage="train")
+        valid_outputs, valid_targets = mask_output(outputs, targets, masks)
+        if self.leading_loss:
+            leading_loss = weighted_categorical_crossentropy(
+                valid_targets["Classification"],
+                valid_outputs["Classification"],
+                self.weights,
+                alpha_leading=0.2,
+            )
+            loss += leading_loss
+        self.log(
+            "train_loss", loss, logger=True, sync_dist=True, on_step=True, on_epoch=True
+        )
+        # compute metrics
+        metrics = self.train_metrics(valid_outputs, valid_targets)
+
+        self.log_dict(metrics)
 
     def validation_step(self, batch, batch_idx):
         inputs, targets, masks = batch
         outputs = self(inputs)  # Forward pass
+        # Compute the masked loss
+        loss = calc_loss("mse", outputs, targets)
+        # Compute RMSE
+        rmse = torch.sqrt(loss)
+        self.log("val_loss", loss, sync_dist=True, on_step=True, on_epoch=True)
+        self.log("val_rmse", rmse, sync_dist=True, on_step=False, on_epoch=True)
 
-        return self.compute_loss_and_metrics(outputs, targets, masks, stage="val")
+        # compute metrics
+        valid_outputs, valid_targets = mask_output(outputs, targets, masks)
+        self.valid_metrics.update(valid_outputs, valid_targets)
 
     def on_validation_epoch_end(self):
-        # Get the current validation metric (e.g., 'val_r2')
-        # Concatenate all predictions and true labels
-        sys_r2 = self.val_r2.compute()
-        preds_all = torch.cat(self.val_preds)
-        true_labels_all = torch.cat(self.true_labels)
-        last_epoch_val_r2 = r2_score(
-            torch.round(preds_all.flatten(), decimals=1), true_labels_all.flatten()
-        )
-        self.log("ave_val_r2", last_epoch_val_r2, sync_dist=True)
-        self.log("sys_r2", sys_r2, sync_dist=True)
-
-        print(f"average r2 score at epoch {self.current_epoch}: {last_epoch_val_r2}")
-
-        # Determine if current epoch has the best validation metric
-        is_best = False
-        if self.best_val_metric is None or last_epoch_val_r2 > self.best_val_metric:
-            is_best = True
-            self.best_val_metric = last_epoch_val_r2
-
-        if is_best:
-            # Store the tensors without converting to NumPy arrays
-            self.best_test_outputs = {
-                "preds_all": preds_all,
-                "true_labels_all": true_labels_all,
-            }
-
-            print(f"F1 Score:{self.val_f1.compute()}")
-            print("Confusion Matrix at best R²:")
-            cm = self.confmat(
-                torch.argmax(preds_all, dim=1), torch.argmax(true_labels_all, dim=1)
-            )
-            print(cm)
-            print(f"R2 Score:{sys_r2}")
-        # Clear buffers for the next epoch
-        self.val_preds.clear()
-        self.true_labels.clear()
-        self.val_r2.reset()
+        output = self.valid_metrics.compute()
+        self.log_dict(output)
+        # remember to reset metrics at the end of the epoch
+        self.valid_metrics.reset()
 
     def test_step(self, batch, batch_idx):
         inputs, targets, masks = batch
         outputs = self(inputs)  # Forward pass
+        # Compute the masked loss
+        loss = calc_loss("mse", outputs, targets)
+        # Compute RMSE
+        rmse = torch.sqrt(loss)
+        self.log("val_rmse", rmse, sync_dist=True, on_step=False, on_epoch=True)
 
-        return self.compute_loss_and_metrics(outputs, targets, masks, stage="test")
+        # compute metrics
+        valid_outputs, valid_targets = mask_output(outputs, targets, masks)
+        metrics = self.test_metrics(valid_outputs, valid_targets)
+
+        self.log_dict(metrics)
+        cm = self.confmat(
+            valid_outputs["Classification"], valid_targets["Classification"]
+        )
+        print("Confusion Matrix for test data:")
+        print(cm)
 
     def configure_optimizers(self):
         # Choose the optimizer based on input parameter

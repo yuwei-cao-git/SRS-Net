@@ -25,12 +25,26 @@ def main(args):
     save_dir = os.path.join(os.getcwd(), "tune_img", "ray_results")
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
+    class_weights = [
+        0.13429631,
+        0.02357711,
+        0.05467328,
+        0.04353036,
+        0.02462899,
+        0.03230562,
+        0.2605792,
+        0.00621396,
+        0.42019516,
+    ]
+    class_weights = torch.from_numpy(np.array(class_weights)).float()
     config = {
         "mode": "img",
         "data_dir": data_dir,
         "learning_rate": tune.choice([1e-3, 1e-4, 5e-4, 1e-5]),
         "batch_size": tune.choice([16, 32]),
         "optimizer": tune.choice(["adam", "sgd", "adamW"]),
+        "weighted_loss": tune.choice([True, False]),
+        "train_weights": class_weights,
         "epochs": args.max_epochs,
         "gpus": torch.cuda.device_count(),
         "use_mf": tune.choice([True, False]),
@@ -43,7 +57,10 @@ def main(args):
         "transforms": tune.choice(["random", "compose", "None"]),
         "save_dir": save_dir,
         "n_samples": 30,
-        "season": tune.choice(["spring", "summer", "fall", "winter", "2seasons", "4seasons"]),
+        "season": tune.choice(
+            ["spring", "summer", "fall", "winter", "2seasons", "4seasons"]
+        ),
+        "loss": tune.choice(["mse", "mae", "wmse", "rwmse", "kl", "mape"]),
     }
     try:
         # wandb.init(project='M3F-Net-ray')

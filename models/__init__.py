@@ -1,3 +1,3 @@
 from .ResUnet import ResUnet
-from .loss import MaskedMSELoss
+from .loss import calc_loss
 from .unet import UNet

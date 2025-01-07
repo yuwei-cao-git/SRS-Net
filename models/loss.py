@@ -1,82 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-
-class WeightedMSELoss(nn.Module):
-    def __init__(self, weights):
-        super(WeightedMSELoss, self).__init__()
-        self.weights = weights
-
-    def forward(self, y_pred, y_true):
-        squared_errors = torch.square(y_pred - y_true)
-        weighted_squared_errors = squared_errors * self.weights
-        loss = torch.mean(weighted_squared_errors)
-        return loss
-
-
-def calc_loss(y_true, y_pred, weights):
-    weighted_mse = WeightedMSELoss(weights)
-    loss = weighted_mse(y_pred, y_true)
-
-    return loss
-
-
-class MaskedMSELoss(nn.Module):
-    def __init__(self):
-        super(MaskedMSELoss, self).__init__()
-
-    def forward(self, output, target, nodata_mask):
-        """
-        Computes per-pixel loss, masking out the nodata regions.
-        """
-        # output: Shape (batch_size, num_classes, height, width)
-        # target: Shape (batch_size, num_classes, height, width)
-        # nodata_mask: Shape (batch_size, height, width)
-
-        # Apply the nodata mask to ignore invalid pixels
-        valid_mask = ~nodata_mask.unsqueeze(1)  # Shape: (batch_size, 1, height, width)
-        valid_mask = valid_mask.expand_as(
-            output
-        )  # Shape: (batch_size, num_classes, height, width)
-
-        # Compute loss per pixel
-        loss = F.mse_loss(
-            output * valid_mask.float(), target * valid_mask.float(), reduction="sum"
-        )
-
-        # Compute the average loss over valid pixels
-        num_valid_pixels = valid_mask.float().sum()
-        if num_valid_pixels > 0:
-            loss = loss / num_valid_pixels
-        else:
-            loss = torch.tensor(0.0, requires_grad=True).to(output.device)
-
-        return loss
-
-
-# create a nn class (just-for-fun choice :-)
-class RMSELoss(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.mse = MaskedMSELoss()
-
-    def forward(self, outputs, targets, mask):
-        return torch.sqrt(self.mse(outputs, targets, mask))
-
-
-def weighted_categorical_crossentropy(y_true, y_pred, weights):
-    # y_true and y_pred are tensors of shape (batch_size, num_classes)
-    # weights is a tensor of shape (num_classes,)
-    loss = -torch.sum(weights * y_true * torch.log(y_pred + 1e-8), dim=1)
-    return torch.mean(loss)
-
-
-def weighted_kl_divergence(y_true, y_pred, weights):
-    loss = torch.sum(
-        weights * y_true * torch.log((y_true + 1e-8) / (y_pred + 1e-8)), dim=1
-    )
-    return torch.mean(loss)
+from torchmetrics import MeanSquaredError
+from torchmetrics import MeanAbsoluteError
+from torchmetrics.regression import WeightedMeanAbsolutePercentageError
 
 
 def apply_mask(outputs, targets, mask, multi_class=True, keep_shp=False):
@@ -119,24 +46,112 @@ def apply_mask(outputs, targets, mask, multi_class=True, keep_shp=False):
         return valid_outputs, valid_targets
 
 
-# contrastive loss
-def aggregate_to_superpixels(
-    pred_pixel_labels, img_masks, fusion_preds, lambda_contrastive
-):
-    # Aggregate per-pixel predictions
-    valid_pixel_preds, _ = apply_mask(
-        pred_pixel_labels,
-        pred_pixel_labels,
-        img_masks,
-        multi_class=False,
-        keep_shp=True,
+# MSE loss
+def calc_mse_loss(valid_outputs, valid_targets):
+    mse = MeanSquaredError()
+    loss = mse(valid_outputs, valid_targets)
+
+    return loss
+
+
+# Weighted MSE loss
+class WeightedMSELoss(nn.Module):
+    def __init__(self, weights):
+        super(WeightedMSELoss, self).__init__()
+        self.weights = weights
+
+    def forward(self, y_pred, y_true):
+        squared_errors = torch.square(y_pred - y_true)
+        weighted_squared_errors = squared_errors * self.weights
+        loss = torch.mean(weighted_squared_errors)
+        return loss
+
+
+def calc_wmse_loss(valid_outputs, valid_targets, weights):
+    weighted_mse = WeightedMSELoss(weights)
+    loss = weighted_mse(valid_outputs, valid_targets)
+
+    return loss
+
+
+# Rooted Weighted loss
+class RWMSELoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.wmse = WeightedMSELoss()
+
+    def forward(self, outputs, targets):
+        return torch.sqrt(self.wmse(outputs, targets))
+
+
+def calc_rwmse_loss(valid_outputs, valid_targets):
+    rwmes = RWMSELoss()
+    loss = rwmes(valid_outputs, valid_targets)
+
+    return loss
+
+
+# kl loss
+def weighted_kl_divergence(y_true, y_pred, weights):
+    loss = torch.sum(
+        weights * y_true * torch.log((y_true + 1e-8) / (y_pred + 1e-8)), dim=1
     )
-    aggregated_pixel_preds = valid_pixel_preds.mean(dim=[2, 3])  # Shape: (N, C)
+    return torch.mean(loss)
 
-    # Compute contrastive loss
-    contrastive_loss = F.mse_loss(fusion_preds, aggregated_pixel_preds)
 
-    # Total loss
-    lambda_contrastive = lambda_contrastive
+# MAE loss
+def calc_mae_loss(valid_outputs, valid_targets):
+    mae = MeanAbsoluteError()
+    loss = mae(valid_outputs, valid_targets)
 
-    return lambda_contrastive * contrastive_loss
+    return loss
+
+
+# MAPE loss
+def calc_mape_loss(valid_outputs, valid_targets):
+    mape = WeightedMeanAbsolutePercentageError()
+    loss = mape(valid_outputs, valid_targets)
+
+    return loss
+
+
+# loss for leading species classification
+def weighted_categorical_crossentropy(y_true, y_pred, weights, alpha_leading):
+    # y_true and y_pred are tensors of shape (batch_size, num_classes)
+    # weights is a tensor of shape (num_classes,)
+    loss = -torch.sum(weights * y_true * torch.log(y_pred + 1e-8), dim=1)
+    return torch.mean(loss)
+
+
+def mask_output(y_pred, y_true, mask):
+    valid_outputs, valid_targets = apply_mask(y_pred, y_true, mask, multi_class=True)
+    valid_outputs = torch.round(valid_outputs, decimals=1)
+
+    # Convert outputs and targets to leading class labels by taking argmax
+    pred_labels = torch.argmax(y_pred, dim=1)
+    true_labels = torch.argmax(y_true, dim=1)
+
+    # Apply mask to leading species labels
+    valid_preds, valid_true = apply_mask(
+        pred_labels, true_labels, mask, multi_class=False
+    )
+    targets = {"Classification": valid_true, "Regression": valid_targets.view(-1)}
+    preds = {"Classification": valid_preds, "Regression": valid_outputs.view(-1)}
+
+    return preds, targets
+
+
+def calc_loss(loss_func_name, y_pred, y_true, mask, weights):
+    valid_outputs, valid_targets = apply_mask(y_pred, y_true, mask, multi_class=True)
+    if loss_func_name == "wmse":
+        return calc_wmse_loss(valid_outputs, valid_targets, weights)
+    elif loss_func_name == "rwmse":
+        return calc_rwmse_loss(valid_outputs, valid_targets, weights)
+    elif loss_func_name == "mse":
+        return calc_mse_loss(valid_outputs, valid_targets)
+    elif loss_func_name == "kl_loss":
+        return weighted_kl_divergence(valid_targets, valid_outputs, weights)
+    elif loss_func_name == "mae":
+        return calc_mae_loss(valid_outputs, valid_targets)
+    else:
+        calc_mape_loss(valid_outputs, valid_targets)

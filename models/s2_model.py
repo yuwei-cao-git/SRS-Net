@@ -160,7 +160,7 @@ class Model(pl.LightningModule):
         self.log(
             "val_loss", loss, logger=True, sync_dist=True, on_step=True, on_epoch=True
         )
-        self.log("val_rmse", rmse, sync_dist=True, on_step=False, on_epoch=True)
+        self.log("val_rmse", rmse, sync_dist=True, on_step=True, on_epoch=True)
 
         # compute metrics
         self.valid_metrics.update(valid_outputs, valid_targets)
@@ -209,7 +209,13 @@ class Model(pl.LightningModule):
             else:  # Handle non-nested metrics (if any exist)
                 if isinstance(metrics, torch.Tensor) and metrics.numel() == 1:
                     metrics = metrics.item()
-                    self.log(task, metrics, sync_dist=True)
+                    self.log(
+                        task,
+                        metrics,
+                        logger=True,
+                        on_epoch=True,
+                        sync_dist=True,
+                    )
 
     def configure_optimizers(self):
         # Choose the optimizer based on input parameter

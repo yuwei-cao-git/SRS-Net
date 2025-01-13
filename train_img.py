@@ -17,7 +17,7 @@ def main():
     parser.add_argument(
         "--learning_rate", type=float, default=0.0001, help="initial learning rate"
     )
-    parser.add_argument("--optimizer", type=str, default="adam", help="optimizer")
+    parser.add_argument("--optimizer", type=str, default="adamW", help="optimizer")
     parser.add_argument("--scheduler", type=str, default="steplr", help="scheduler")
     parser.add_argument("--log_name", type=str, required=True, help="Log file name")
     parser.add_argument(

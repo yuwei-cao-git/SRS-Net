@@ -1,7 +1,7 @@
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
-from models.s2_model import Model
+from models.s2_model_p import Model
 from dataset.s2 import TreeSpeciesDataModule
 
 

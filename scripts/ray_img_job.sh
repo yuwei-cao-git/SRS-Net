@@ -4,9 +4,9 @@
 #SBATCH --error=img_tune_%j.err
 #SBATCH --time=20:00:00        # Specify run time 
 #SBATCH --nodes=1
-#SBATCH --ntasks=1
+#SBATCH --ntasks=4
 #SBATCH --cpus-per-task=32
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:4
 #SBATCH --mem=32G
 
 next_output_dir=$(date +%Y%m%d%H%M%S)

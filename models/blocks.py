@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from mamba_ssm import Mamba
 from einops import rearrange
-import numpy as np
 
 # -----------------------------------------------------------------------------------
 # Parts of the season fusion module

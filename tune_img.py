@@ -76,7 +76,7 @@ def main(args):
         tuner = tune.Tuner(
             trainable_with_gpu,
             tune_config=tune.TuneConfig(
-                metric="val_Regression_R2Score",
+                metric="val_r2",
                 mode="max",
                 scheduler=scheduler,
                 num_samples=config["n_samples"],
@@ -99,7 +99,7 @@ def main(args):
         results = tuner.fit()
         print(
             "Best trial config: {}".format(
-                results.get_best_result("val_Regression_R2Score", "max").config
+                results.get_best_result("val_r2", "max").config
             )
         )
     except Exception as e:

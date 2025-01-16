@@ -2,7 +2,7 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from ray import tune, train
 from pytorch_lightning.loggers import WandbLogger
-from models.s2_model import Model
+from models.s2_model_p import Model
 import os
 import wandb
 import time
@@ -33,7 +33,7 @@ def train_func(config):
 
     # Define a checkpoint callback to save the best model
     checkpoint_callback = ModelCheckpoint(
-        monitor="val_Regression_R2Score",  # Track the validation loss
+        monitor="val_r2",  # Track the validation loss
         filename="final_model",
         save_top_k=1,  # Only save the best model
         mode="max",  # We want to minimize the validation loss
@@ -63,8 +63,8 @@ def train_func(config):
         # wandb_logger.log_text(key="preds", dataframe=sp_df) # WARNING:root:Truncating wandb.Table object to 200000 rows.
     """
     # Report the final metric to Ray Tune
-    final_result = trainer.callback_metrics["val_Regression_R2Score"].item()
-    train.report({"val_Regression_R2Score": final_result})
+    final_result = trainer.callback_metrics["val_r2"].item()
+    train.report({"val_r2": final_result})
 
     # Test the model after training
     trainer.test(model, data_module)

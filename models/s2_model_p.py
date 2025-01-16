@@ -115,8 +115,6 @@ class Model(pl.LightningModule):
 
     def forward(self, inputs):
         # Optionally pass inputs through MF module
-        if self.aug is not None:
-            inputs = self.transform(inputs)
         if self.use_mf:
             # Apply the MF module first to extract features from input
             fused_features = self.mf_module(inputs)
@@ -184,7 +182,7 @@ class Model(pl.LightningModule):
         )
         # Compute the masked loss
         self.weights = self.weights.to(outputs.device)
-        loss = calc_masked_loss(self.loss, outputs, targets, masks, self.weights)
+        loss = calc_masked_loss(self.loss, outputs, targets, self.weights)
         loss = self.criterion(valid_outputs, valid_targets)
         if self.leading_loss and stage == "train":
             correct = (valid_preds.view(-1) == valid_true.view(-1)).float()

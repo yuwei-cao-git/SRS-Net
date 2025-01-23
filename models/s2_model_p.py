@@ -180,10 +180,15 @@ class Model(pl.LightningModule):
         valid_preds, valid_true = self.apply_mask(
             pred_labels, true_labels, masks, multi_class=False
         )
-        # Compute the masked loss
-        self.weights = self.weights.to(outputs.device)
-        loss = calc_masked_loss(self.loss, outputs, targets, self.weights)
-        loss = self.criterion(valid_outputs, valid_targets)
+        if stage == "train":
+            # Compute the masked loss
+            self.weights = self.weights.to(outputs.device)
+            loss = calc_masked_loss(
+                self.loss, valid_outputs, valid_targets, self.weights
+            )
+        else:
+            loss = self.criterion(valid_outputs, valid_targets)
+
         if self.leading_loss and stage == "train":
             correct = (valid_preds.view(-1) == valid_true.view(-1)).float()
             loss_pixel_leads = 1 - correct.mean()  # 1 - accuracy as pseudo-loss

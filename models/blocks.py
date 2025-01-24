@@ -11,7 +11,7 @@ from einops import rearrange
 
 # fusion s2 data
 class SE_Block(nn.Module):
-    def __init__(self, ch_in, reduction=16):
+    def __init__(self, ch_in, reduction=2):
         super(SE_Block, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)  # 全局自适应池化
         self.fc = nn.Sequential(
@@ -201,7 +201,6 @@ class MF(nn.Module):  # Multi-Feature (MF) module for seasonal attention-based f
             combined_features = torch.stack(
                 [summer_features, autumn_features], dim=2
             )  # Shape: (B, 16, D=2, H, W)
-            print(combined_features.shape)
 
         # Apply SE Block for channel-wise attention
         out = self.se(combined_features)  # SE_Block takes 4D input

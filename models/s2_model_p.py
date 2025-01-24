@@ -56,7 +56,8 @@ class Model(pl.LightningModule):
                     spatial_att=self.spatial_attention,
                 )
                 total_input_channels = (
-                    64  # MF module outputs 64 channels after processing four seasons
+                    16
+                    * self.num_season  # MF module outputs 64 channels after processing four seasons
                 )
             else:
                 total_input_channels = (
@@ -66,6 +67,7 @@ class Model(pl.LightningModule):
         else:
             total_input_channels = self.n_bands
             self.use_mf = False
+            self.spatial_attention = False
         # Define the U-Net architecture with or without Residual connections
         if self.use_residual:
             # Using ResUNet

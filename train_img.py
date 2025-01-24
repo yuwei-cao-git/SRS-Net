@@ -48,7 +48,9 @@ def main():
     )
     parser.add_argument("--transforms", default="compose")
     parser.add_argument("--gpus", type=int, default=torch.cuda.device_count())
-    parser.add_argument("--season", default="4seasons", help="season(s) for training")
+    parser.add_argument(
+        "--season", default="4seasons", type=str, help="season(s) for training"
+    )
     parser.add_argument("--loss", default="mse")
     parser.add_argument(
         "--leading_loss",

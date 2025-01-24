@@ -58,8 +58,6 @@ class ChannelSELayer3D(nn.Module):
         batch_size, num_channels, D, H, W = x.size()
         # Average along each channel
         squeeze_tensor = self.avg_pool(x)
-        print("squeeze_tensor.shape:", squeeze_tensor.shape)
-        print("fc1 input size:", self.fc1.weight.shape)
 
         # channel excitation
         fc_out_1 = self.relu(self.fc1(squeeze_tensor.view(batch_size, num_channels)))

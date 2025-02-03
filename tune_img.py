@@ -45,7 +45,7 @@ def main(args):
         "mode": "img",
         "data_dir": data_dir,
         "learning_rate": tune.choice([1e-3, 1e-4, 5e-4, 1e-5]),
-        "batch_size": tune.choice([16, 32]),
+        "batch_size": 32,
         "optimizer": tune.choice(["adam", "sgd", "adamW"]),
         "epochs": args.max_epochs,
         "gpus": torch.cuda.device_count(),
@@ -59,9 +59,7 @@ def main(args):
         "transforms": tune.choice(["random", "compose", "None"]),
         "save_dir": save_dir,
         "n_samples": args.n_samples,
-        "season": tune.choice(
-            ["spring", "summer", "fall", "winter", "2seasons", "4seasons"]
-        ),
+        "season": "4seasons",  # tune.choice(["spring", "summer", "fall", "winter", "2seasons", "4seasons"]),
         "loss": tune.choice(["mse", "mae", "wmse", "rwmse", "kl"]),
         "leading_loss": tune.choice([True, False]),
         "weighted_loss": tune.choice([True, False]),
@@ -87,7 +85,7 @@ def main(args):
                 callbacks=[
                     WandbLoggerCallback(
                         project="SRS-Net",
-                        group="v2",
+                        group="v1",
                         api_key=os.environ["WANDB_API_KEY"],
                         log_config=True,
                         save_checkpoints=True,

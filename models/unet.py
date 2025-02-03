@@ -1,5 +1,4 @@
 import torch.nn as nn
-import torch.nn.functional as F
 from .blocks import DoubleConv, Down, Up, OutConv
 
 
@@ -33,5 +32,4 @@ class UNet(nn.Module):
         x = self.up3(x, x2)  # Up 3
         x = self.up4(x, x1)  # Up 4
         logits = self.outc(x)  # Output layer
-        preds = F.softmax(logits, dim=1)
-        return preds, x5
+        return logits, x5

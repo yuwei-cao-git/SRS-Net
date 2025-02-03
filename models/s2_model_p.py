@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import pytorch_lightning as pl
 import torchvision.transforms.v2 as transforms
 
@@ -124,7 +125,8 @@ class Model(pl.LightningModule):
             # Concatenate all seasons directly if no MF module
             fused_features = torch.cat(inputs, dim=1)
         logits, _ = self.model(fused_features)
-        return logits
+        preds = F.softmax(logits, dim=1)
+        return preds
 
     def apply_mask(self, outputs, targets, mask, multi_class=True):
         """

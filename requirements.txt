@@ -64,7 +64,7 @@ torchmetrics==1.5.2+computecanada
 torchtext==0.18.0+computecanada
 torchvision==0.19.1+computecanada
 tqdm==4.67.1+computecanada
-transformers==4.47.1+computecanada
+transformers==4.47.0+computecanada
 triton==3.2.0+computecanada
 urllib3==2.3.0+computecanada
 wandb==0.19.6+computecanada

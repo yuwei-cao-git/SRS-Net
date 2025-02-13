@@ -148,14 +148,15 @@ class MF(nn.Module):  # Multi-Feature (MF) module for seasonal attention-based f
         self.bottleneck_summer = nn.Conv2d(self.channels, 16, 3, 1, 1, bias=False)
         self.bottleneck_autumn = nn.Conv2d(self.channels, 16, 3, 1, 1, bias=False)
 
-        if seasons == 4:
-            total_channels = 64
+        if seasons >= 4:
             self.mask_map_spring = nn.Conv2d(self.channels, 1, 1, 1, 0, bias=True)
             self.mask_map_winter = nn.Conv2d(self.channels, 1, 1, 1, 0, bias=True)
             self.bottleneck_spring = nn.Conv2d(self.channels, 16, 3, 1, 1, bias=False)
             self.bottleneck_winter = nn.Conv2d(self.channels, 16, 3, 1, 1, bias=False)
-        else:
-            total_channels = 32
+            if seasons == 5:
+                self.mask_map_rest = nn.Conv2d(38, 1, 1, 1, 0, bias=True)
+                self.bottleneck_rest = nn.Conv2d(38, 16, 3, 1, 1, bias=False)
+        total_channels = 16 * seasons
 
         # Final SE Block for channel attention across all seasons
         if self.spatial_attention:
@@ -164,8 +165,15 @@ class MF(nn.Module):  # Multi-Feature (MF) module for seasonal attention-based f
             self.se = SE_Block(total_channels, reduction=16)
 
     def forward(self, x):  # x is a list of 4 inputs (spring, summer, autumn, winter)
-        if self.seasons == 4:
-            spring, summer, autumn, winter = x
+        if self.seasons >= 4:
+            if self.seasons == 4:
+                spring, summer, autumn, winter = x
+            else:
+                spring, summer, autumn, winter, phenology, climate, dem = x
+                rest = torch.cat((phenology, climate, dem), dim=1)
+                rest_mask = torch.mul(
+                    self.mask_map_rest(rest).repeat(1, 38, 1, 1), rest
+                )
             spring_mask = torch.mul(
                 self.mask_map_spring(spring).repeat(1, self.channels, 1, 1), spring
             )
@@ -174,6 +182,8 @@ class MF(nn.Module):  # Multi-Feature (MF) module for seasonal attention-based f
             )
             spring_features = self.bottleneck_spring(spring_mask)
             winter_features = self.bottleneck_winter(winter_mask)
+            if self.seasons == 5:
+                rest_feature = self.bottleneck_rest(rest_mask)
         else:
             summer, autumn = x
 
@@ -195,6 +205,17 @@ class MF(nn.Module):  # Multi-Feature (MF) module for seasonal attention-based f
                 [spring_features, summer_features, autumn_features, winter_features],
                 dim=2,
             )  # Shape: (B, 16, D=4, H, W)
+        elif self.seasons == 5:
+            combined_features = torch.stack(
+                [
+                    spring_features,
+                    summer_features,
+                    autumn_features,
+                    winter_features,
+                    rest_feature,
+                ],
+                dim=2,
+            )
         else:
             combined_features = torch.stack(
                 [summer_features, autumn_features], dim=2

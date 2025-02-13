@@ -59,7 +59,7 @@ def main(args):
         "transforms": tune.choice(["random", "compose", "None"]),
         "save_dir": save_dir,
         "n_samples": args.n_samples,
-        "season": "4seasons",  # tune.choice(["spring", "summer", "fall", "winter", "2seasons", "4seasons"]),
+        "season": tune.choice(["summer", "fall", "2seasons", "4seasons", "all"]),
         "loss": tune.choice(["mse", "mae", "wmse", "rwmse", "kl"]),
         "leading_loss": tune.choice([True, False]),
         "weighted_loss": tune.choice([True, False]),

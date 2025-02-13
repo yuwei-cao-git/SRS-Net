@@ -44,6 +44,8 @@ class Model(pl.LightningModule):
             self.num_season = 2
         if self.config["season"] == "4seasons":
             self.num_season = 4
+        if self.config["season"] == "all":
+            self.num_season = 5
         if self.config["resolution"] == 10:
             self.n_bands = 12
         else:
@@ -61,9 +63,15 @@ class Model(pl.LightningModule):
                     * self.num_season  # MF module outputs 64 channels after processing four seasons
                 )
             else:
-                total_input_channels = (
-                    self.n_bands * self.num_season
-                )  # If no MF module, concatenating all seasons directly
+                if self.num_season != 5:
+                    total_input_channels = (
+                        self.n_bands * self.num_season
+                    )  # If no MF module, concatenating all seasons directly
+                else:
+                    total_input_channels = (
+                        self.n_bands * 4
+                        + 38  # all seasons + dem (1) + climate (36) + ph (1)
+                    )  # If no MF module, concatenating all seasons directly
                 self.spatial_attention = False
         else:
             total_input_channels = self.n_bands

@@ -44,7 +44,7 @@ def main(args):
     config = {
         "mode": "img",
         "data_dir": data_dir,
-        "learning_rate": tune.choice([1e-3, 1e-4, 5e-4, 1e-5]),
+        "learning_rate": tune.choice([1e-3, 5e-4, 1e-4, 5e-4, 1e-5]),
         "batch_size": 32,
         "optimizer": tune.choice(["adam", "sgd", "adamW"]),
         "epochs": args.max_epochs,
@@ -54,7 +54,7 @@ def main(args):
         "use_residual": tune.choice([True, False]),
         "n_classes": 9,
         "classes": ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],  # classes
-        "resolution": tune.choice(["10m", "20m"]),
+        "resolution": tune.choice(["10m", "20m", "10m_bilinear"]),
         "scheduler": "asha",  # tune.choice(["plateau", "steplr", "cosine"]),
         "transforms": tune.choice(["random", "compose", "None"]),
         "save_dir": save_dir,

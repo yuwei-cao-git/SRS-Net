@@ -132,7 +132,7 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
         self.config = config
         # Tile names for train, validation, and test
         # User specifies which datasets to use
-        self.processed_dir = join(config["data_dir"], f'{self.config["resolution"]}m')
+        self.processed_dir = join(config["data_dir"], f'{self.config["resolution"]}')
         self.tile_names = {
             "train": load_tile_names(
                 join(self.processed_dir, "dataset/train_tiles.txt")

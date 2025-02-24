@@ -46,7 +46,7 @@ class Model(pl.LightningModule):
             self.num_season = 4
         if self.config["season"] == "all":
             self.num_season = 5
-        if self.config["resolution"] == 10:
+        if self.config["resolution"] == "10m":
             self.n_bands = 12
         else:
             self.n_bands = 9

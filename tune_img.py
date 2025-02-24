@@ -54,7 +54,7 @@ def main(args):
         "use_residual": tune.choice([True, False]),
         "n_classes": 9,
         "classes": ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],  # classes
-        "resolution": tune.choice([10, 20]),
+        "resolution": tune.choice(["10m", "20m"]),
         "scheduler": "asha",  # tune.choice(["plateau", "steplr", "cosine"]),
         "transforms": tune.choice(["random", "compose", "None"]),
         "save_dir": save_dir,

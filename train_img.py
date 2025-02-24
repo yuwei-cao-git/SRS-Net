@@ -22,9 +22,9 @@ def main():
     parser.add_argument("--log_name", type=str, required=True, help="Log file name")
     parser.add_argument(
         "--resolution",
-        type=int,
-        choices=[20, 10],
-        default=20,
+        type=str,
+        choices=["20m", "10m"],
+        default="20m",
         help="Resolution to use for the data",
     )
     parser.add_argument(

@@ -28,8 +28,9 @@ key.txt
 
 # inter-steps
 *.ipynb
-augmentation/
+*.h5
 
 # tune
 record.md
 scripts/local_train.sh
+augmentation/sr/README.txt

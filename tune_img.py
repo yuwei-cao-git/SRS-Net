@@ -15,7 +15,7 @@ parser.add_argument(
     "--max_epochs", type=int, default=200, help="Number of epochs to train the model"
 )
 parser.add_argument(
-    "--n_samples", type=int, default=40, help="Number of tuning samples"
+    "--n_samples", type=int, default=50, help="Number of tuning samples"
 )
 
 
@@ -45,7 +45,7 @@ def main(args):
         "mode": "img",
         "data_dir": data_dir,
         "learning_rate": tune.choice([1e-3, 5e-4, 1e-4, 5e-4, 1e-5]),
-        "batch_size": 32,
+        "batch_size": 64,
         "optimizer": tune.choice(["adam", "sgd", "adamW"]),
         "epochs": args.max_epochs,
         "gpus": torch.cuda.device_count(),

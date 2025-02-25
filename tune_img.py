@@ -12,10 +12,10 @@ import numpy as np
 parser = argparse.ArgumentParser(description="Train model with given parameters")
 parser.add_argument("--data_dir", type=str, default=None, help="path to data dir")
 parser.add_argument(
-    "--max_epochs", type=int, default=200, help="Number of epochs to train the model"
+    "--max_epochs", type=int, default=250, help="Number of epochs to train the model"
 )
 parser.add_argument(
-    "--n_samples", type=int, default=50, help="Number of tuning samples"
+    "--n_samples", type=int, default=3, help="Number of tuning samples"
 )
 
 
@@ -44,25 +44,25 @@ def main(args):
     config = {
         "mode": "img",
         "data_dir": data_dir,
-        "learning_rate": tune.choice([1e-3, 5e-4, 1e-4, 5e-4, 1e-5]),
+        "learning_rate": 1e-3, #tune.choice([1e-3, 5e-4, 1e-4, 5e-4, 1e-5]),
         "batch_size": 64,
-        "optimizer": tune.choice(["adam", "sgd", "adamW"]),
+        "optimizer": "adamW", #tune.choice(["adam", "sgd", "adamW"]),
         "epochs": args.max_epochs,
         "gpus": torch.cuda.device_count(),
-        "use_mf": tune.choice([True, False]),
-        "spatial_attention": tune.choice([True, False]),
-        "use_residual": tune.choice([True, False]),
+        "use_mf": False, #tune.choice([True, False]),
+        "spatial_attention": False, #tune.choice([True, False]),
+        "use_residual": True, #tune.choice([True, False]),
         "n_classes": 9,
         "classes": ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],  # classes
         "resolution": tune.choice(["10m", "20m", "10m_bilinear"]),
         "scheduler": "asha",  # tune.choice(["plateau", "steplr", "cosine"]),
-        "transforms": tune.choice(["random", "compose", "None"]),
+        "transforms": "random", #tune.choice(["random", "compose", "None"]),
         "save_dir": save_dir,
         "n_samples": args.n_samples,
-        "season": tune.choice(["summer", "fall", "2seasons", "4seasons", "all"]),
-        "loss": tune.choice(["mse", "mae", "wmse", "rwmse", "kl"]),
-        "leading_loss": tune.choice([True, False]),
-        "weighted_loss": tune.choice([True, False]),
+        "season": "4seasons", #tune.choice(["summer", "fall", "2seasons", "4seasons", "all"]),
+        "loss": "rwmse", #tune.choice(["mse", "mae", "wmse", "rwmse", "kl"]),
+        "leading_loss": False, #tune.choice([True, False]),
+        "weighted_loss": False, #tune.choice([True, False]),
     }
     config["prop_weights"] = class_weights if config["weighted_loss"] else torch.ones(9)
     try:
@@ -85,7 +85,7 @@ def main(args):
                 callbacks=[
                     WandbLoggerCallback(
                         project="SRS-Net",
-                        group="v1",
+                        group="v2",
                         api_key=os.environ["WANDB_API_KEY"],
                         log_config=True,
                         save_checkpoints=True,

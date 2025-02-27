@@ -15,7 +15,7 @@ def main():
     parser.add_argument("--n_bands", type=int, default=9, help="number bands per tile")
     parser.add_argument("--n_classes", type=int, default=9, help="number classes")
     parser.add_argument(
-        "--learning_rate", type=float, default=0.0001, help="initial learning rate"
+        "--learning_rate", type=float, default=0.001, help="initial learning rate"
     )
     parser.add_argument("--optimizer", type=str, default="adamW", help="optimizer")
     parser.add_argument("--scheduler", type=str, default="steplr", help="scheduler")
@@ -23,15 +23,15 @@ def main():
     parser.add_argument(
         "--resolution",
         type=str,
-        choices=["20m", "10m"],
+        choices=["20m", "10m", "10m_bilinear"],
         default="20m",
         help="Resolution to use for the data",
     )
     parser.add_argument(
-        "--epochs", type=int, default=200, help="Number of epochs to train the model"
+        "--epochs", type=int, default=250, help="Number of epochs to train the model"
     )
     parser.add_argument(
-        "--batch_size", type=int, default=32, help="Number of epochs to train the model"
+        "--batch_size", type=int, default=64, help="Number of epochs to train the model"
     )
     parser.add_argument(
         "--use_mf", action="store_true", help="Use multi-fusion (set flag to enable)"
@@ -46,17 +46,20 @@ def main():
         action="store_true",
         help="Use spatial attention in mf fusion",
     )
-    parser.add_argument("--transforms", default="compose")
+    parser.add_argument("--transforms", default="random")
     parser.add_argument("--gpus", type=int, default=torch.cuda.device_count())
     parser.add_argument(
         "--season", default="4seasons", type=str, help="season(s) for training"
     )
-    parser.add_argument("--loss", default="mse")
+    parser.add_argument("--loss", default="rwmse")
     parser.add_argument(
         "--leading_loss",
         action="store_true",
     )
-    parser.add_argument("--weighted_loss", default=True)
+    parser.add_argument(
+        "--weighted_loss",
+        action="store_true",
+    )
 
     # Parse arguments
     params = vars(parser.parse_args())

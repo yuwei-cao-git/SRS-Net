@@ -24,7 +24,7 @@ def load_tile_names(file_path):
 
 
 class TreeSpeciesDataset(Dataset):
-    def __init__(self, tile_names, processed_dir, datasets, augment="None"):
+    def __init__(self, tile_names, processed_dir, datasets, resolution, augment="None"):
         """
         Args:
             tile_names (list): List of tile filenames to load.
@@ -35,12 +35,14 @@ class TreeSpeciesDataset(Dataset):
         self.processed_dir = processed_dir
         self.datasets = datasets  # List of dataset folder names
         self.augment = augment
+        self.resolution = resolution
 
         # Define the transformation pipeline
         if self.augment == "compose":
+            size = 128 if self.resolution != "10m_bilinear" else 256
             self.transform = transforms.Compose(
                 [
-                    transforms.RandomCrop(size=(128, 128)),
+                    transforms.RandomCrop(size=(256, 256)),
                     transforms.RandomHorizontalFlip(p=0.5),
                     transforms.RandomPerspective(distortion_scale=0.6, p=0.5),
                     transforms.RandomRotation(degrees=(0, 180)),
@@ -53,7 +55,7 @@ class TreeSpeciesDataset(Dataset):
             self.transform = transforms.RandomApply(
                 torch.nn.ModuleList(
                     [
-                        transforms.RandomCrop(size=(128, 128)),
+                        transforms.RandomCrop(size=(256, 256)),
                         transforms.RandomHorizontalFlip(p=0.5),
                         transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
                         transforms.RandomRotation(degrees=(0, 180)),
@@ -133,6 +135,7 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
         # Tile names for train, validation, and test
         # User specifies which datasets to use
         self.processed_dir = join(config["data_dir"], f'{self.config["resolution"]}')
+        self.resolution = config["resolution"]
         self.tile_names = {
             "train": load_tile_names(
                 join(self.processed_dir, "dataset/train_tiles.txt")
@@ -179,6 +182,7 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
             self.tile_names["train"],
             self.processed_dir,
             self.datasets_to_use,
+            self.resolution,
             augment=None,
         )
         if self.config["transforms"] != "None":
@@ -186,16 +190,23 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
                 self.tile_names["train"],
                 self.processed_dir,
                 self.datasets_to_use,
+                self.resolution,
                 augment=self.config["transforms"],
             )
             self.train_dataset = torch.utils.data.ConcatDataset(
                 [self.train_dataset, aug_train_dataset]
             )
         self.val_dataset = TreeSpeciesDataset(
-            self.tile_names["val"], self.processed_dir, self.datasets_to_use
+            self.tile_names["val"],
+            self.processed_dir,
+            self.datasets_to_use,
+            self.resolution,
         )
         self.test_dataset = TreeSpeciesDataset(
-            self.tile_names["test"], self.processed_dir, self.datasets_to_use
+            self.tile_names["test"],
+            self.processed_dir,
+            self.datasets_to_use,
+            self.resolution,
         )
 
     def train_dataloader(self):

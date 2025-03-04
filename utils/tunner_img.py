@@ -2,7 +2,7 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from ray import tune, train
 from pytorch_lightning.loggers import WandbLogger
-from models.s2_model_p import Model
+from models.s2_model import Model
 import os
 import wandb
 import time

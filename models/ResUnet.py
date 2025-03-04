@@ -4,13 +4,14 @@ from .blocks import Stem, ResidualBlock, ConvBlock, UpSampleConcat
 
 # ResidualUNet model
 class ResUnet(nn.Module):
-    def __init__(self, n_channels=52, n_classes=9):
+    def __init__(self, n_channels=52, n_classes=9, use_stem=True):
         super(ResUnet, self).__init__()
-        # f = [16, 32, 64, 128, 256]  # Filter sizes
         # f = [64, 128, 256, 512, 1024]
         f = [32, 64, 128, 256, 512]
         # Encoder
-        self.stem = Stem(n_channels, f[0])
+        self.use_stem = use_stem
+        if self.use_stem:
+            self.stem = Stem(n_channels, f[0])
         self.residual_block1 = ResidualBlock(f[0], f[1], stride=2)
         self.residual_block2 = ResidualBlock(f[1], f[2], stride=2)
         self.residual_block3 = ResidualBlock(f[2], f[3], stride=2)
@@ -40,7 +41,10 @@ class ResUnet(nn.Module):
 
     def forward(self, x):
         # Encoder
-        e1 = self.stem(x)  # f[0] channels
+        if self.use_stem:
+            e1 = self.stem(x)  # f[0] channels
+        else:
+            e1 = x
         e2 = self.residual_block1(e1)  # f[1] channels
         e3 = self.residual_block2(e2)  # f[2] channels
         e4 = self.residual_block3(e3)  # f[3] channels

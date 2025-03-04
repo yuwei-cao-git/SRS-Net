@@ -5,7 +5,7 @@ from mamba_ssm import Mamba
 from einops import rearrange
 
 # -----------------------------------------------------------------------------------
-# Parts of the season fusion module
+# Parts of the season fusion module -- Sptial Channel Extraction & Fusion
 # -----------------------------------------------------------------------------------
 
 

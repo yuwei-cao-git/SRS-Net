@@ -50,6 +50,7 @@ def main(args):
         "gpus": torch.cuda.device_count(),
         "use_mf": False, #tune.choice([True, False]),
         "spatial_attention": False, #tune.choice([True, False]),
+        "simple_fusion": tune.choice([True, False]),
         "use_residual": True, #tune.choice([True, False]),
         "n_classes": 9,
         "classes": ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],  # classes

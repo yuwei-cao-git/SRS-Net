@@ -46,6 +46,11 @@ def main():
         action="store_true",
         help="Use spatial attention in mf fusion",
     )
+    parser.add_argument(
+        "--simple_fusion",
+        action="store_true",
+        help="Use linear transformation in mf fusion",
+    )
     parser.add_argument("--transforms", default="random")
     parser.add_argument("--gpus", type=int, default=torch.cuda.device_count())
     parser.add_argument(

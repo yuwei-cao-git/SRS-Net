@@ -7,6 +7,7 @@ import torchvision.transforms.v2 as transforms
 from .blocks import MF
 from .unet import UNet
 from .ResUnet import ResUnet
+from .TransResUnet import FusionBlock
 
 from torchmetrics.regression import R2Score
 from torchmetrics.classification import (
@@ -35,6 +36,7 @@ class Model(pl.LightningModule):
         self.config = config
         self.use_mf = self.config["use_mf"]
         self.spatial_attention = self.config["spatial_attention"]
+        self.simple_fusion = self.config["simple_fusion"]
         self.use_residual = self.config["use_residual"]
         self.loss = self.config["loss"]
         self.leading_loss = self.config["leading_loss"]
@@ -57,15 +59,19 @@ class Model(pl.LightningModule):
         if self.num_season != 1:
             if self.use_mf:
                 # MF Module for seasonal fusion (each season has `n_bands` channels)
-                self.mf_module = MF(
-                    channels=self.n_bands,
-                    seasons=self.num_season,
-                    spatial_att=self.spatial_attention,
-                )
-                total_input_channels = (
-                    16
-                    * self.num_season  # MF module outputs 64 channels after processing four seasons
-                )
+                if self.simple_fusion:
+                    self.mf_module = FusionBlock(n_inputs=self.num_season, n_filters=64)
+                    total_input_channels = 64
+                else:
+                    self.mf_module = MF(
+                        channels=self.n_bands,
+                        seasons=self.num_season,
+                        spatial_att=self.spatial_attention,
+                    )
+                    total_input_channels = (
+                        16
+                        * self.num_season  # MF module outputs 64 channels after processing four seasons
+                    )
             else:
                 if self.num_season != 5:
                     total_input_channels = (

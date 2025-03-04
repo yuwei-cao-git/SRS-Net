@@ -86,8 +86,8 @@ class TreeSpeciesDataset(Dataset):
             dataset_path = os.path.join(self.processed_dir, dataset, tile_name)
             with rasterio.open(dataset_path) as src:
                 if self.remove_bands:
-                    # Define bands to remove (1-based [1, 9, 10, 11])
-                    bands_to_remove = {1, 9, 10, 11}
+                    # Define bands to remove (1-based [1, 9, 10])
+                    bands_to_remove = {1, 9, 10}
                     # Generate list of all valid 1-based band indices to read
                     bands_to_read = [b for b in range(1, src.count + 1) if b not in bands_to_remove]
                     # Read only the needed bands

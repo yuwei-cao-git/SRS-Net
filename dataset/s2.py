@@ -38,8 +38,8 @@ class TreeSpeciesDataset(Dataset):
         self.resolution = resolution
 
         # Define the transformation pipeline
+        size = 128 if self.resolution != "10m_bilinear" else 256
         if self.augment == "compose":
-            size = 128 if self.resolution != "10m_bilinear" else 256
             self.transform = transforms.Compose(
                 [
                     transforms.RandomCrop(size=(size, size)),

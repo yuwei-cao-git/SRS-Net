@@ -18,7 +18,6 @@ parser.add_argument(
     "--n_samples", type=int, default=3, help="Number of tuning samples"
 )
 
-
 def main(args):
     # data_dir = os.path.join(os.getcwd(), "data")
     data_dir = (
@@ -63,6 +62,7 @@ def main(args):
         "loss": "rwmse", #tune.choice(["mse", "mae", "wmse", "rwmse", "kl"]),
         "leading_loss": False, #tune.choice([True, False]),
         "weighted_loss": False, #tune.choice([True, False]),
+        "remove_bands": tune.choice([True, False]),
     }
     config["prop_weights"] = class_weights if config["weighted_loss"] else torch.ones(9)
     try:

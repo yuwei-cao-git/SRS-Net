@@ -60,6 +60,7 @@ def main():
         "--weighted_loss",
         action="store_true",
     )
+    parser.add_argument("--remove_bands", action="store_true")
 
     # Parse arguments
     params = vars(parser.parse_args())

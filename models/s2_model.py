@@ -39,6 +39,7 @@ class Model(pl.LightningModule):
         self.loss = self.config["loss"]
         self.leading_loss = self.config["leading_loss"]
         self.season = self.config["season"]
+        self.remove_bands = self.config["remove_bands"]
         self.num_season = 1
         if self.config["season"] == "2seasons":
             self.num_season = 2
@@ -47,7 +48,10 @@ class Model(pl.LightningModule):
         if self.config["season"] == "all":
             self.num_season = 5
         if self.config["resolution"] == "10m":
-            self.n_bands = 12
+            if self.remove_bands:
+                self.n_bands = 9
+            else:
+                self.n_bands = 12
         else:
             self.n_bands = 9
         if self.num_season != 1:

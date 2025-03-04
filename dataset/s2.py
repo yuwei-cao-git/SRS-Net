@@ -42,7 +42,7 @@ class TreeSpeciesDataset(Dataset):
             size = 128 if self.resolution != "10m_bilinear" else 256
             self.transform = transforms.Compose(
                 [
-                    transforms.RandomCrop(size=(256, 256)),
+                    transforms.RandomCrop(size=(size, size)),
                     transforms.RandomHorizontalFlip(p=0.5),
                     transforms.RandomPerspective(distortion_scale=0.6, p=0.5),
                     transforms.RandomRotation(degrees=(0, 180)),
@@ -55,7 +55,7 @@ class TreeSpeciesDataset(Dataset):
             self.transform = transforms.RandomApply(
                 torch.nn.ModuleList(
                     [
-                        transforms.RandomCrop(size=(256, 256)),
+                        transforms.RandomCrop(size=(size, size)),
                         transforms.RandomHorizontalFlip(p=0.5),
                         transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
                         transforms.RandomRotation(degrees=(0, 180)),

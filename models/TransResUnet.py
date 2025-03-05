@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-from ResUnet import ResUnet
+from .ResUnet import ResUnet
 
 # -----------------------------------------------------------------------------------
 # Parts of the fusion module

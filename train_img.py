@@ -56,13 +56,9 @@ def main():
     parser.add_argument(
         "--season", default="4seasons", type=str, help="season(s) for training"
     )
-    parser.add_argument("--loss", default="rwmse")
+    parser.add_argument("--loss", default="wrmse")
     parser.add_argument(
         "--leading_loss",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--weighted_loss",
         action="store_true",
     )
     parser.add_argument("--remove_bands", action="store_true")
@@ -87,7 +83,7 @@ def main():
         0.42019516,
     ]
     prop_weights = torch.from_numpy(np.array(prop_weights)).float()
-    params["prop_weights"] = prop_weights if params["weighted_loss"] else torch.ones(9)
+    params["prop_weights"] = prop_weights if params["loss"].startswith("w") else torch.ones(9)
 
     if not os.path.exists(params["save_dir"]):
         os.makedirs(params["save_dir"])

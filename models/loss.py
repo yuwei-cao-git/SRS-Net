@@ -141,11 +141,11 @@ def calc_loss(loss_func_name, y_pred, y_true, mask, weights):
     valid_outputs, valid_targets = apply_mask(y_pred, y_true, mask, multi_class=True)
     if loss_func_name == "wmse":
         return calc_wmse_loss(valid_outputs, valid_targets, weights)
-    elif loss_func_name == "rwmse":
+    elif loss_func_name == "wrmse":
         return calc_rwmse_loss(valid_outputs, valid_targets, weights)
     elif loss_func_name == "mse":
         return calc_mse_loss(valid_outputs, valid_targets)
-    elif loss_func_name == "kl":
+    elif loss_func_name == "wkl":
         return weighted_kl_divergence(valid_targets, valid_outputs, weights)
     elif loss_func_name == "mae":
         return calc_mae_loss(valid_outputs, valid_targets)
@@ -154,11 +154,11 @@ def calc_loss(loss_func_name, y_pred, y_true, mask, weights):
 def calc_masked_loss(loss_func_name, valid_outputs, valid_targets, weights):
     if loss_func_name == "wmse":
         return calc_wmse_loss(valid_outputs, valid_targets, weights)
-    elif loss_func_name == "rwmse":
+    elif loss_func_name == "wrmse":
         return calc_rwmse_loss(valid_outputs, valid_targets, weights)
     elif loss_func_name == "mse":
         return calc_mse_loss(valid_outputs, valid_targets)
-    elif loss_func_name == "kl":
+    elif loss_func_name == "wkl":
         return weighted_kl_divergence(valid_targets, valid_outputs, weights)
     elif loss_func_name == "mae":
         return calc_mae_loss(valid_outputs, valid_targets)

@@ -7,6 +7,8 @@ from dataset.s2 import TreeSpeciesDataModule
 
 def train(config):
     seed_everything(1)
+    
+    wandb_logger = WandbLogger(project="SRS-Net", name=config["log_name"], save_dir=config["save_dir"])
 
     # Initialize the DataModule
     data_module = TreeSpeciesDataModule(config)
@@ -17,12 +19,14 @@ def train(config):
     # Use the calculated input channels from the DataModule to initialize the model
     model = Model(config)
     # print(ModelSummary(model, max_depth=-1))  # Prints the full model summary
+    
     early_stopping = EarlyStopping(
         monitor="val_loss",  # Metric to monitor
-        patience=10,  # Number of epochs with no improvement after which training will be stopped
+        patience=20,  # Number of epochs with no improvement after which training will be stopped
         mode="min",  # Set "min" for validation loss
         verbose=True,
     )
+    
     # Define a checkpoint callback to save the best model
     checkpoint_callback = ModelCheckpoint(
         monitor="val_loss",  # Track the validation loss
@@ -31,8 +35,6 @@ def train(config):
         save_top_k=1,  # Only save the best model
         mode="min",  # We want to minimize the validation loss
     )
-
-    wandb_logger = WandbLogger(name=config["log_name"], save_dir=config["save_dir"])
 
     # Create a PyTorch Lightning Trainer
     trainer = Trainer(
@@ -43,6 +45,7 @@ def train(config):
         num_nodes=1,
         strategy="ddp",
     )
+    
     # Train the model
     trainer.fit(model, data_module)
 

@@ -148,15 +148,28 @@ class TreeSpeciesDataset(Dataset):
         
     def split_into_quadrants(self, tensor):
         """Split (C, 256, 256) tensor into four (C, 128, 128) tensors."""
-        _, H, W = tensor.shape  # (C, H, W)
-        assert H == W == 256, "Expected input size (C, 256, 256)"
+        shape = tensor.shape
+        if len(shape) == 3:  # (C, H, W) format
+            C, H, W = shape
+            return [
+                tensor[:, :128, :128],  # Top-left
+                tensor[:, :128, 128:],  # Top-right
+                tensor[:, 128:, :128],  # Bottom-left
+                tensor[:, 128:, 128:],  # Bottom-right
+            ]
         
-        return [
-            tensor[:, :128, :128],  # Top-left
-            tensor[:, :128, 128:],  # Top-right
-            tensor[:, 128:, :128],  # Bottom-left
-            tensor[:, 128:, 128:],  # Bottom-right
-        ]
+        elif len(shape) == 2:  # (H, W) format (e.g., mask)
+            H, W = shape
+            return [
+                tensor[:128, :128],  # Top-left
+                tensor[:128, 128:],  # Top-right
+                tensor[128:, :128],  # Bottom-left
+                tensor[128:, 128:],  # Bottom-right
+            ]
+        
+        else:
+            raise ValueError(f"Unexpected tensor shape: {shape}. Expected (C, H, W) or (H, W).")
+
 
 
 class TreeSpeciesDataModule(pl.LightningDataModule):

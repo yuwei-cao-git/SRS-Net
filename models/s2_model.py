@@ -133,6 +133,8 @@ class Model(pl.LightningModule):
         # Containers for validation predictions and true labels
         self.best_test_outputs = None
         self.best_val_metric = None
+        
+        self.save_hyperparameters()
 
     def forward(self, inputs):
         # Optionally pass inputs through MF module

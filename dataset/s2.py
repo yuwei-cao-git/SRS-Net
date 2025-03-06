@@ -80,6 +80,8 @@ class TreeSpeciesDataset(Dataset):
             tile_name = tile_name.strip()
             tile_name += ".tif"
         input_data_list = []
+        if self.resolution == "10m_bilinear":
+            all_season_patches = [[] for _ in range(4)]  # 4 empty lists for quadrants
 
         # Load data from each dataset (spring, summer, fall, winter, etc.)
         for dataset in self.datasets:
@@ -98,9 +100,15 @@ class TreeSpeciesDataset(Dataset):
                 # Apply augmentation if enabled
                 if self.transform:
                     tensor_data = self.transform(tensor_data)
-                input_data_list.append(
-                    tensor_data
-                )  # Append each season's tensor to the list
+                if self.resolution == "10m_bilinear":
+                    # Split season into 4 parts and store them separately
+                    season_quadrants = self.split_into_quadrants(tensor_data)
+                    for i in range(4):
+                        all_season_patches[i].append(season_quadrants[i])
+                else:
+                    input_data_list.append(
+                        tensor_data
+                    )  # Append each season's tensor to the list
 
         # Load the corresponding label (target species composition)
         label_path = os.path.join(self.processed_dir, "labels/tiles_128", tile_name)
@@ -124,9 +132,31 @@ class TreeSpeciesDataset(Dataset):
             target_data
         ).float()  # Shape: (num_output_channels, H, W)
         mask_tensor = torch.from_numpy(mask).bool()  # Shape: (H, W)
+        
+        if self.resolution == "10m_bilinear":
+            target_quadrants = self.split_into_quadrants(target_tensor)
+            mask_quadrants = self.split_into_quadrants(mask_tensor)
 
-        # Return the list of input tensors for each season, the target tensor, and the mask tensor
-        return input_data_list, target_tensor, mask_tensor
+            # Return 4 sets of patches, keeping seasons separate
+            return [
+                (all_season_patches[i], target_quadrants[i], mask_quadrants[i])
+                for i in range(4)
+            ]
+        else:
+            # Return the list of input tensors for each season, the target tensor, and the mask tensor
+            return input_data_list, target_tensor, mask_tensor
+        
+    def split_into_quadrants(self, tensor):
+        """Split (C, 256, 256) tensor into four (C, 128, 128) tensors."""
+        _, H, W = tensor.shape  # (C, H, W)
+        assert H == W == 256, "Expected input size (C, 256, 256)"
+        
+        return [
+            tensor[:, :128, :128],  # Top-left
+            tensor[:, :128, 128:],  # Top-right
+            tensor[:, 128:, :128],  # Bottom-left
+            tensor[:, 128:, 128:],  # Bottom-right
+        ]
 
 
 class TreeSpeciesDataModule(pl.LightningDataModule):

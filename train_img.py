@@ -23,7 +23,7 @@ def main():
     parser.add_argument(
         "--resolution",
         type=str,
-        choices=["20m", "10m", "10m_bilinear"],
+        choices=["20m", "10m", "10m_bilinear", "10m_bilinear_split"],
         default="20m",
         help="Resolution to use for the data",
     )
@@ -83,7 +83,9 @@ def main():
         0.42019516,
     ]
     prop_weights = torch.from_numpy(np.array(prop_weights)).float()
-    params["prop_weights"] = prop_weights if params["loss"].startswith("w") else torch.ones(9)
+    params["prop_weights"] = (
+        prop_weights if params["loss"].startswith("w") else torch.ones(9)
+    )
 
     if not os.path.exists(params["save_dir"]):
         os.makedirs(params["save_dir"])

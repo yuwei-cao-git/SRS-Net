@@ -284,15 +284,15 @@ class Model(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         inputs, targets, masks = batch
-        outputs = self(inputs)  # Forward pass #[batch_size, n_classes, height, width]
+        outputs = self(inputs.view(-1, 9, 128, 128))  # Forward pass #[batch_size, n_classes, height, width]
 
-        return self.compute_loss_and_metrics(outputs, targets, masks, stage="train")
+        return self.compute_loss_and_metrics(outputs, targets.view(-1, 9, 128, 128), masks.view(-1, 9, 128, 128), stage="train")
 
     def validation_step(self, batch, batch_idx):
         inputs, targets, masks = batch
-        outputs = self(inputs)  # Forward pass
+        outputs = self(inputs.view(-1, 9, 128, 128))  # Forward pass
 
-        return self.compute_loss_and_metrics(outputs, targets, masks, stage="val")
+        return self.compute_loss_and_metrics(outputs, targets.view(-1, 9, 128, 128), masks.view(-1, 9, 128, 128), stage="val")
 
     def on_validation_epoch_end(self):
         # Get the current validation metric (e.g., 'val_r2')
@@ -317,9 +317,9 @@ class Model(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         inputs, targets, masks = batch
-        outputs = self(inputs)  # Forward pass
+        outputs = self(inputs.view(-1, 9, 128, 128))  # Forward pass
 
-        return self.compute_loss_and_metrics(outputs, targets, masks, stage="test")
+        return self.compute_loss_and_metrics(outputs, targets.view(-1, 9, 128, 128), masks.view(-1, 9, 128, 128), stage="test")
 
     def configure_optimizers(self):
         # Choose the optimizer based on input parameter

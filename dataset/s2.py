@@ -136,11 +136,14 @@ class TreeSpeciesDataset(Dataset):
         if self.resolution == "10m_bilinear":
             target_quadrants = self.split_into_quadrants(target_tensor)
             mask_quadrants = self.split_into_quadrants(mask_tensor)
+            
+            inputs = [torch.stack(all_season_patches[i]) for i in range(4)]  # Each list has (num_seasons, C, 128, 128)
+            targets = [target_quadrants[i] for i in range(4)]  # Each has shape (num_classes, 128, 128)
+            masks = [mask_quadrants[i] for i in range(4)]  # Each has shape (128, 128)
 
             # Return 4 sets of patches, keeping seasons separate
             return [
-                (all_season_patches[i], target_quadrants[i], mask_quadrants[i])
-                for i in range(4)
+                inputs, targets, masks
             ]
         else:
             # Return the list of input tensors for each season, the target tensor, and the mask tensor

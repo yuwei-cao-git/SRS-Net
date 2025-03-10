@@ -60,7 +60,7 @@ class Model(pl.LightningModule):
             if self.use_mf:
                 # MF Module for seasonal fusion (each season has `n_bands` channels)
                 if self.simple_fusion:
-                    self.mf_module = FusionBlock(n_inputs=self.num_season, n_filters=64)
+                    self.mf_module = FusionBlock(n_inputs=self.num_season, n_filters=9)
                     total_input_channels = 64
                 else:
                     self.mf_module = MF(
@@ -133,8 +133,7 @@ class Model(pl.LightningModule):
         # Containers for validation predictions and true labels
         self.best_test_outputs = None
         self.best_val_metric = None
-        
-        
+
         self.save_hyperparameters()
 
     def forward(self, inputs):

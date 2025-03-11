@@ -21,23 +21,11 @@ from .loss import calc_masked_loss
 # Updating UNet to incorporate residual connections and MF module
 class Model(pl.LightningModule):
     def __init__(self, config):
-        """
-        Args:
-            n_bands (int): Number of input channels (bands) for each season.
-            n_classes (int): Number of output classes.
-            use_mf (bool): Whether to use the MF module.
-            use_residual (bool): Whether to use Residual connections in U-Net blocks.
-            optimizer_type (str): Type of optimizer ('adam', 'sgd', etc.).
-            learning_rate (float): Learning rate for the optimizer.
-            scheduler_type (str): Type of scheduler ('plateau', etc.).
-            scheduler_params (dict): Parameters for the scheduler (e.g., 'patience', 'factor' for ReduceLROnPlateau).
-        """
         super(Model, self).__init__()
         self.config = config
-        self.use_mf = self.config["use_mf"]
-        self.spatial_attention = self.config["spatial_attention"]
-        self.simple_fusion = self.config["simple_fusion"]
-        self.use_residual = self.config["use_residual"]
+        self.fusion_mode = self.config["fusion_mode"]
+        self.use_fuse = True
+        self.network = self.config["network"]
         self.loss = self.config["loss"]
         self.leading_loss = self.config["leading_loss"]
         self.season = self.config["season"]
@@ -57,24 +45,13 @@ class Model(pl.LightningModule):
         else:
             self.n_bands = 9
         if self.num_season != 1:
-            if self.use_mf:
-                # MF Module for seasonal fusion (each season has `n_bands` channels)
-                if self.simple_fusion:
-                    self.mf_module = FusionBlock(
-                        n_inputs=self.num_season, in_ch=self.n_bands, n_filters=64
-                    )
-                    total_input_channels = 64
-                else:
-                    self.mf_module = MF(
-                        channels=self.n_bands,
-                        seasons=self.num_season,
-                        spatial_att=self.spatial_attention,
-                    )
-                    total_input_channels = (
-                        16
-                        * self.num_season  # MF module outputs 64 channels after processing four seasons
-                    )
-            else:
+            # MF Module for seasonal fusion (each season has `n_bands` channels)
+            if self.fusion_mode == "sf":
+                self.mf_module = FusionBlock(
+                    n_inputs=self.num_season, in_ch=self.n_bands, n_filters=64
+                )
+                total_input_channels = 64
+            elif self.fusion_mode == "stack":
                 if self.num_season != 5:
                     total_input_channels = (
                         self.n_bands * self.num_season
@@ -84,13 +61,22 @@ class Model(pl.LightningModule):
                         self.n_bands * 4
                         + 38  # all seasons + dem (1) + climate (36) + ph (1)
                     )  # If no MF module, concatenating all seasons directly
-                self.spatial_attention = False
+                self.use_fuse = False
+            else:
+                self.mf_module = MF(
+                    channels=self.n_bands,
+                    seasons=self.num_season,
+                    spatial_att=self.fusion_mode == "cs_mf",
+                )
+                total_input_channels = (
+                    16
+                    * self.num_season  # MF module outputs 64 channels after processing four seasons
+                )
         else:
             total_input_channels = self.n_bands
-            self.use_mf = False
-            self.spatial_attention = False
+            self.use_fuse = False
         # Define the U-Net architecture with or without Residual connections
-        if self.use_residual:
+        if self.network == "resunet":
             # Using ResUNet
             self.model = ResUnet(
                 n_channels=total_input_channels, n_classes=self.config["n_classes"]
@@ -140,12 +126,15 @@ class Model(pl.LightningModule):
 
     def forward(self, inputs):
         # Optionally pass inputs through MF module
-        if self.use_mf:
+        if self.use_fuse:
             # Apply the MF module first to extract features from input
             fused_features = self.mf_module(inputs)
         else:
-            # Concatenate all seasons directly if no MF module
-            fused_features = torch.cat(inputs, dim=1)
+            if self.num_season != 1:
+                # Concatenate all seasons directly if no MF module
+                fused_features = torch.cat(inputs, dim=1)
+            else:
+                fused_features = inputs
         logits, _ = self.model(fused_features)
         preds = F.softmax(logits, dim=1)
         return preds

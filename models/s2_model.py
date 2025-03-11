@@ -60,7 +60,9 @@ class Model(pl.LightningModule):
             if self.use_mf:
                 # MF Module for seasonal fusion (each season has `n_bands` channels)
                 if self.simple_fusion:
-                    self.mf_module = FusionBlock(n_inputs=self.num_season, n_filters=9)
+                    self.mf_module = FusionBlock(
+                        n_inputs=self.num_season, in_ch=self.n_bands, n_filters=64
+                    )
                     total_input_channels = 64
                 else:
                     self.mf_module = MF(

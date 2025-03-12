@@ -85,7 +85,7 @@ def main():
         os.makedirs(params["save_dir"])
     print(params)
 
-    wandb.init(project="SRS-Net", group="v2")
+    wandb.init(project="SRS-Net", group="v3")
     # Call the train function with parsed arguments
     train(params)
 

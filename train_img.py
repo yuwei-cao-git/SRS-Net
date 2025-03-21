@@ -34,22 +34,16 @@ def main():
         "--batch_size", type=int, default=64, help="Number of epochs to train the model"
     )
     parser.add_argument(
-        "--use_mf", action="store_true", help="Use multi-fusion (set flag to enable)"
-    )
-    parser.add_argument(
-        "--use_residual",
-        action="store_true",
+        "--network",
+        default="resunet",
+        choices=["resunet", "unet"],
         help="Use residual connections (set flag to enable)",
     )
     parser.add_argument(
-        "--spatial_attention",
-        action="store_true",
-        help="Use spatial attention in mf fusion",
-    )
-    parser.add_argument(
-        "--simple_fusion",
-        action="store_true",
-        help="Use linear transformation in mf fusion",
+        "--fusion_mode",
+        default="stack",
+        choices=["stack", "sf", "mf", "cs_mf"],
+        help="Use fuse modes in seasonal feature fusion",
     )
     parser.add_argument("--transforms", default="random")
     parser.add_argument("--gpus", type=int, default=torch.cuda.device_count())
@@ -91,7 +85,7 @@ def main():
         os.makedirs(params["save_dir"])
     print(params)
 
-    wandb.init(project="SRS-Net", group="v2")
+    wandb.init(project="SRS-Net", group="v3")
     # Call the train function with parsed arguments
     train(params)
 

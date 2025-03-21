@@ -10,7 +10,7 @@ def train(config):
 
     wandb_logger = WandbLogger(
         project="SRS-Net",
-        group="v2",
+        group="v3",
         name=config["log_name"],
         save_dir=config["save_dir"],
     )

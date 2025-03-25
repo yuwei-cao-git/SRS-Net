@@ -24,7 +24,15 @@ def load_tile_names(file_path):
 
 
 class TreeSpeciesDataset(Dataset):
-    def __init__(self, tile_names, processed_dir, datasets, resolution, augment="None", remove_bands=False):
+    def __init__(
+        self,
+        tile_names,
+        processed_dir,
+        datasets,
+        resolution,
+        augment="None",
+        remove_bands=False,
+    ):
         """
         Args:
             tile_names (list): List of tile filenames to load.
@@ -89,13 +97,15 @@ class TreeSpeciesDataset(Dataset):
                     # Define bands to remove (1-based [1, 9, 10])
                     bands_to_remove = {1, 9, 10}
                     # Generate list of all valid 1-based band indices to read
-                    bands_to_read = [b for b in range(1, src.count + 1) if b not in bands_to_remove]
+                    bands_to_read = [
+                        b for b in range(1, src.count + 1) if b not in bands_to_remove
+                    ]
                     # Read only the needed bands
                     input_data = src.read(bands_to_read)
                 else:
                     input_data = src.read()  # Read the bands (num_bands, H, W)
                 tensor_data = torch.from_numpy(input_data).float()
-                
+
                 # Apply augmentation if enabled
                 if self.transform:
                     tensor_data = self.transform(tensor_data)
@@ -195,7 +205,7 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
             self.datasets_to_use,
             self.resolution,
             augment=None,
-            remove_bands=self.remove_bands
+            remove_bands=self.remove_bands,
         )
         if self.config["transforms"] != "None":
             aug_train_dataset = TreeSpeciesDataset(
@@ -204,7 +214,7 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
                 self.datasets_to_use,
                 self.resolution,
                 augment=self.config["transforms"],
-                remove_bands=self.remove_bands
+                remove_bands=self.remove_bands,
             )
             self.train_dataset = torch.utils.data.ConcatDataset(
                 [self.train_dataset, aug_train_dataset]
@@ -214,14 +224,14 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
             self.processed_dir,
             self.datasets_to_use,
             self.resolution,
-            remove_bands=self.remove_bands
+            remove_bands=self.remove_bands,
         )
         self.test_dataset = TreeSpeciesDataset(
             self.tile_names["test"],
             self.processed_dir,
             self.datasets_to_use,
             self.resolution,
-            remove_bands=self.remove_bands
+            remove_bands=self.remove_bands,
         )
 
     def train_dataloader(self):

@@ -23,7 +23,13 @@ def main():
     parser.add_argument(
         "--resolution",
         type=str,
-        choices=["20m", "10m", "10m_bilinear", "10m_bilinear_split"],
+        choices=[
+            "20m",
+            "10m",
+            "10m_bilinear",
+            "10m_bilinear_split",
+            "5m_bilinear_split",
+        ],
         default="20m",
         help="Resolution to use for the data",
     )

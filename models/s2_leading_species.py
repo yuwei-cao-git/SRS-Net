@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
 import torchvision.transforms.v2 as transforms
+import numpy as np
 
 from .blocks import MF
 from .unet import UNet

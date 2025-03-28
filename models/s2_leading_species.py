@@ -129,10 +129,8 @@ class Model(pl.LightningModule):
                 fused_features = torch.cat(inputs, dim=1)
             else:
                 fused_features = inputs
-        print(fused_features.shape)
         logits, _ = self.model(fused_features)
         logits = F.log_softmax(logits, dim=1)
-        print(logits[0])
         return logits
 
     def compute_loss_and_metrics(self, pixel_logits, targets, img_masks, stage="val"):
@@ -162,7 +160,7 @@ class Model(pl.LightningModule):
             loss_pixel_leads = F.nll_loss(
                 pixel_logits,
                 valid_pixel_lead_true,
-                weight=self.class_weights.to(pixel_logits.device),
+                weight=self.weights.to(pixel_logits.device),
                 ignore_index=255,
             )
         elif self.config["loss"] == "ae" and stage == "train":
@@ -188,15 +186,12 @@ class Model(pl.LightningModule):
                 ignore_index=255,
             )
 
-        # Round outputs to two decimal place
-        valid_outputs = torch.round(valid_pixel_lead_preds, decimals=1)
-
         # Calculate R² and F1 score for valid pixels
         if stage == "val":
-            f1 = self.val_f1(valid_outputs, valid_pixel_lead_true)
+            f1 = self.val_f1(valid_pixel_lead_preds, valid_pixel_lead_true)
         else:
-            f1 = self.test_f1(valid_outputs, valid_pixel_lead_true)
-            oa = self.test_oa(valid_outputs, valid_pixel_lead_true)
+            f1 = self.test_f1(valid_pixel_lead_preds, valid_pixel_lead_true)
+            oa = self.test_oa(valid_pixel_lead_preds, valid_pixel_lead_true)
 
         # Compute RMSE
         rmse = torch.sqrt(loss_pixel_leads)
@@ -224,6 +219,7 @@ class Model(pl.LightningModule):
                 f"{stage}_f1",
                 f1,
                 logger=True,
+                prog_bar=True,
                 sync_dist=sync_state,
                 on_step=True,
                 on_epoch=(stage != "train"),

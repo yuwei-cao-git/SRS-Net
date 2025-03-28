@@ -31,8 +31,8 @@ def apply_mask(outputs, targets, mask, multi_class=True, keep_shp=False):
         # Set invalid outputs and targets to zero
         outputs = outputs.clone()
         targets = targets.clone()
-        outputs[expanded_mask] = 0
-        targets[expanded_mask] = 0
+        outputs[expanded_mask] = 255
+        targets[expanded_mask] = 255
         return outputs, targets
     else:
         # Apply mask to exclude invalid data points

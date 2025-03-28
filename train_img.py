@@ -18,6 +18,11 @@ def main():
     parser.add_argument("--n_bands", type=int, default=9, help="number bands per tile")
     parser.add_argument("--n_classes", type=int, default=9, help="number classes")
     parser.add_argument(
+        "--classes",
+        default=["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],
+        help="classes",
+    )
+    parser.add_argument(
         "--learning_rate", type=float, default=0.001, help="initial learning rate"
     )
     parser.add_argument("--optimizer", type=str, default="adamW", help="optimizer")

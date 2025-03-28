@@ -96,19 +96,19 @@ class Model(pl.LightningModule):
             num_classes=self.config["n_classes"], average="weighted"
         )
         self.val_f1 = MulticlassF1Score(
-            num_classes=self.config["n_classes"], average="weighted"
+            num_classes=self.config["n_classes"], average="weighted", ignore_index=255
         )
         self.val_oa = MulticlassAccuracy(
-            num_classes=self.config["n_classes"], average="micro"
+            num_classes=self.config["n_classes"], average="micro", ignore_index=255
         )
         self.test_f1 = MulticlassF1Score(
-            num_classes=self.config["n_classes"], average="weighted"
+            num_classes=self.config["n_classes"], average="weighted", ignore_index=255
         )
         self.test_oa = MulticlassAccuracy(
-            num_classes=self.config["n_classes"], average="micro"
+            num_classes=self.config["n_classes"], average="micro", ignore_index=255
         )
         self.confmat = ConfusionMatrix(
-            task="multiclass", num_classes=self.config["n_classes"]
+            task="multiclass", num_classes=self.config["n_classes"], ignore_index=255
         )
 
         # Optimizer and scheduler settings
@@ -193,13 +193,6 @@ class Model(pl.LightningModule):
             )
 
         # Calculate R² and F1 score for valid pixels
-        valid_pixel_lead_preds, valid_pixel_lead_true = apply_mask(
-            pred_lead_pixel_labels,
-            true_lead_pixel_labels,
-            img_masks,
-            multi_class=False,
-            keep_shp=False,
-        )
         if stage == "val":
             f1 = self.val_f1(valid_pixel_lead_preds, valid_pixel_lead_true)
             oa = self.val_oa(valid_pixel_lead_preds, valid_pixel_lead_true)

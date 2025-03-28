@@ -3,6 +3,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
 from models.s2_model import Model
 from dataset.s2 import TreeSpeciesDataModule
+from pytorch_lightning.strategies import DeepSpeedStrategy
 
 
 def train(config):
@@ -46,9 +47,9 @@ def train(config):
         max_epochs=config["epochs"],
         logger=[wandb_logger],
         callbacks=[early_stopping, checkpoint_callback],
-        devices=config["gpus"],
-        num_nodes=1,
-        strategy="ddp",
+        devices=4,
+        num_nodes=2,
+        strategy="deepspeed_stage_3",
     )
 
     # Train the model

@@ -197,3 +197,27 @@ def calc_masked_loss(loss_func_name, valid_outputs, valid_targets, weights):
         return calc_mae_loss(valid_outputs, valid_targets)
     elif loss_func_name == "pinball":
         return calc_pinball_loss(valid_outputs, valid_targets)
+
+
+def focal_loss_multiclass(inputs, targets, alpha=0.25, gamma=2, ignore_index=255):
+    """
+    Multi-class focal loss implementation
+    - inputs: raw logits from the model
+    - targets: true class labels (as integer indices, not one-hot encoded)
+    """
+
+    # Gather the probabilities corresponding to the correct classes
+    targets = targets * (targets != ignore_index).long()
+    targets_one_hot = F.one_hot(targets, num_classes=inputs.shape[-1])
+
+    # Convert logits to log probabilities
+    log_prob = torch.gather(inputs, 1, targets.unsqueeze(1))
+    prob = torch.exp(log_prob)  # Calculate probabilities from log probabilities
+    pt = torch.sum(prob * targets_one_hot, dim=-1)
+
+    # Apply focal adjustment
+    focal_loss = (
+        -alpha * (1 - pt) ** gamma * torch.sum(log_prob * targets_one_hot, dim=-1)
+    )
+
+    return focal_loss.mean()

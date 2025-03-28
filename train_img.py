@@ -11,6 +11,9 @@ def main():
     parser = argparse.ArgumentParser(description="Train model with given parameters")
 
     # Add arguments
+    parser.add_argument(
+        "--task", type=str, default="regression", choices=["regression", "classify"]
+    )
     parser.add_argument("--data_dir", type=str, default=None, help="path to data dir")
     parser.add_argument("--n_bands", type=int, default=9, help="number bands per tile")
     parser.add_argument("--n_classes", type=int, default=9, help="number classes")

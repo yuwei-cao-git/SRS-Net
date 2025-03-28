@@ -1,7 +1,6 @@
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
-from models.s2_model import Model
 from dataset.s2 import TreeSpeciesDataModule
 from pytorch_lightning.strategies import DeepSpeedStrategy
 
@@ -20,9 +19,14 @@ def train(config):
     data_module = TreeSpeciesDataModule(config)
 
     # Call setup explicitly to initialize datasets
-    data_module.setup(stage="fit")
+    data_module.setup()
 
     # Use the calculated input channels from the DataModule to initialize the model
+    if config["task"] == "classify":
+        from models.s2_model import Model
+    else:
+        from models.s2_leading_species import Model
+
     model = Model(config)
     # print(ModelSummary(model, max_depth=-1))  # Prints the full model summary
 
@@ -48,7 +52,7 @@ def train(config):
         logger=[wandb_logger],
         callbacks=[early_stopping, checkpoint_callback],
         devices=4,
-        num_nodes=2,
+        num_nodes=1,
         strategy="deepspeed_stage_3",
     )
 

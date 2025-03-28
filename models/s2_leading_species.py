@@ -129,8 +129,10 @@ class Model(pl.LightningModule):
                 fused_features = torch.cat(inputs, dim=1)
             else:
                 fused_features = inputs
+        print(fused_features.shape)
         logits, _ = self.model(fused_features)
         logits = F.log_softmax(logits, dim=1)
+        print(logits[0])
         return logits
 
     def compute_loss_and_metrics(self, pixel_logits, targets, img_masks, stage="val"):

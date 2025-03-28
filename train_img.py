@@ -44,7 +44,7 @@ def main():
     )
     parser.add_argument(
         "--network",
-        default="resunet",
+        default="unet",
         choices=["resunet", "unet"],
         help="Use residual connections (set flag to enable)",
     )
@@ -65,6 +65,7 @@ def main():
         action="store_true",
     )
     parser.add_argument("--remove_bands", action="store_true")
+    parser.add_argument("--save_dir", type=str, default=None, help="path to save logs")
 
     # Parse arguments
     params = vars(parser.parse_args())
@@ -73,7 +74,11 @@ def main():
         if params["data_dir"] is not None
         else "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/processed"
     )
-    params["save_dir"] = os.path.join(os.getcwd(), "img_logs", params["log_name"])
+    params["save_dir"] = (
+        params["save_dir"]
+        if params["save_dir"] is not None
+        else os.path.join(os.getcwd(), "img_logs", params["log_name"])
+    )
     prop_weights = [
         0.13429631,
         0.02357711,
@@ -101,3 +106,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # python train_img.py --resolution "20m" --loss "wce" --task "classify" --log_name "unet_wce_20m_leading_classify" --batch_size 16 --epoch 2

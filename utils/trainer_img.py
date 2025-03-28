@@ -22,7 +22,7 @@ def train(config):
     data_module.setup()
 
     # Use the calculated input channels from the DataModule to initialize the model
-    if config["task"] == "classify":
+    if config["task"] == "regression":
         from models.s2_model import Model
     else:
         from models.s2_leading_species import Model
@@ -51,9 +51,8 @@ def train(config):
         max_epochs=config["epochs"],
         logger=[wandb_logger],
         callbacks=[early_stopping, checkpoint_callback],
-        devices=4,
-        num_nodes=1,
-        strategy="deepspeed_stage_3",
+        devices=config["gpus"],
+        strategy="ddp",
     )
 
     # Train the model

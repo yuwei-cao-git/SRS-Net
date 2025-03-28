@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -97,6 +98,9 @@ class Model(pl.LightningModule):
         self.val_f1 = MulticlassF1Score(
             num_classes=self.config["n_classes"], average="weighted"
         )
+        self.val_oa = MulticlassAccuracy(
+            num_classes=self.config["n_classes"], average="micro"
+        )
         self.test_f1 = MulticlassF1Score(
             num_classes=self.config["n_classes"], average="weighted"
         )
@@ -115,6 +119,7 @@ class Model(pl.LightningModule):
         # Containers for validation predictions and true labels
         self.best_test_outputs = None
         self.best_val_metric = None
+        self.validation_step_outputs = []
 
         self.save_hyperparameters()
 
@@ -129,8 +134,8 @@ class Model(pl.LightningModule):
                 fused_features = torch.cat(inputs, dim=1)
             else:
                 fused_features = inputs
-        logits, _ = self.model(fused_features)
-        logits = F.log_softmax(logits, dim=1)
+        logits, _ = self.model(fused_features)  # ([16, 9, 128, 128])
+        logits = F.log_softmax(logits, dim=1)  # ([16, 9, 128, 128])
         return logits
 
     def compute_loss_and_metrics(self, pixel_logits, targets, img_masks, stage="val"):
@@ -146,9 +151,10 @@ class Model(pl.LightningModule):
         Returns:
         - loss: The computed masked loss.
         """
+        logs = {}
         # Convert outputs and targets to leading class labels by taking argmax
-        pred_lead_pixel_labels = torch.argmax(pixel_logits, dim=1)
-        true_lead_pixel_labels = torch.argmax(targets, dim=1)
+        pred_lead_pixel_labels = torch.argmax(pixel_logits, dim=1)  # ([16, 128, 128])
+        true_lead_pixel_labels = torch.argmax(targets, dim=1)  # ([16, 128, 128])
         valid_pixel_lead_preds, valid_pixel_lead_true = apply_mask(
             pred_lead_pixel_labels,
             true_lead_pixel_labels,
@@ -187,14 +193,44 @@ class Model(pl.LightningModule):
             )
 
         # Calculate R² and F1 score for valid pixels
+        valid_pixel_lead_preds, valid_pixel_lead_true = apply_mask(
+            pred_lead_pixel_labels,
+            true_lead_pixel_labels,
+            img_masks,
+            multi_class=False,
+            keep_shp=False,
+        )
         if stage == "val":
             f1 = self.val_f1(valid_pixel_lead_preds, valid_pixel_lead_true)
-        else:
+            oa = self.val_oa(valid_pixel_lead_preds, valid_pixel_lead_true)
+        elif stage == "test":
             f1 = self.test_f1(valid_pixel_lead_preds, valid_pixel_lead_true)
             oa = self.test_oa(valid_pixel_lead_preds, valid_pixel_lead_true)
 
         # Compute RMSE
         rmse = torch.sqrt(loss_pixel_leads)
+        # Log metrics
+        logs.update(
+            {
+                f"{stage}_loss": loss_pixel_leads,
+                f"{stage}_rmse": rmse,
+            }
+        )
+        if stage != "train":
+            logs.update(
+                {
+                    f"{stage}_f1": f1,
+                    f"{stage}_oa": oa,
+                }
+            )
+
+        if stage == "val":
+            self.validation_step_outputs.append(
+                {
+                    "val_target": valid_pixel_lead_true,
+                    "val_pred": valid_pixel_lead_preds,
+                }
+            )
 
         # Log val_loss if in validation stage for ModelCheckpoint
         sync_state = True
@@ -224,16 +260,18 @@ class Model(pl.LightningModule):
                 on_step=True,
                 on_epoch=(stage != "train"),
             )
-        if stage == "test":
+        if stage != "train":
             self.log(
-                "test_oa",
+                "{stage}_oa",
                 oa,
                 logger=True,
                 sync_dist=sync_state,
                 on_epoch=True,
             )
-
-        return loss_pixel_leads
+        if stage == "test":
+            return valid_pixel_lead_true, valid_pixel_lead_preds, loss_pixel_leads
+        else:
+            return loss_pixel_leads
 
     def training_step(self, batch, batch_idx):
         inputs, targets, masks = batch
@@ -248,10 +286,16 @@ class Model(pl.LightningModule):
         return self.compute_loss_and_metrics(outputs, targets, masks, stage="val")
 
     def on_validation_epoch_end(self):
-        # Get the current validation metric (e.g., 'val_r2')
-        # Concatenate all predictions and true labels
         sys_f1 = self.val_f1.compute()
 
+        # Concatenate all predictions and true labels
+        test_true = torch.cat(
+            [output["val_target"] for output in self.validation_step_outputs], dim=0
+        )
+        test_pred = torch.cat(
+            [output["val_pred"] for output in self.validation_step_outputs], dim=0
+        )
+        self.log("sys_f1", sys_f1, sync_dist=True)
         # Determine if current epoch has the best validation metric
         is_best = False
         if self.best_val_metric is None or sys_f1 > self.best_val_metric:
@@ -260,14 +304,48 @@ class Model(pl.LightningModule):
 
         if is_best:
             print(f"F1 Score:{sys_f1}")
+            cm = self.confmat(test_pred, test_true)
+            print(f"OA Score:{self.val_oa.compute()}")
+            print(cm)
         # Clear buffers for the next epoch
+        self.validation_step_outputs.clear()
         self.val_f1.reset()
+        self.val_oa.reset()
 
     def test_step(self, batch, batch_idx):
         inputs, targets, masks = batch
         outputs = self(inputs)  # Forward pass
 
-        return self.compute_loss_and_metrics(outputs, targets, masks, stage="test")
+        labels, preds, loss = self.compute_loss_and_metrics(
+            outputs, targets, masks, stage="test"
+        )
+
+        self.save_to_file(labels, preds, self.config["classes"])
+        return loss
+
+    def save_to_file(self, labels, outputs, classes):
+        # Convert tensors to numpy arrays or lists as necessary
+        labels = labels.cpu().numpy() if isinstance(labels, torch.Tensor) else labels
+        outputs = (
+            outputs.cpu().numpy() if isinstance(outputs, torch.Tensor) else outputs
+        )
+        num_samples = labels.shape[0]
+        data = {"SampleID": np.arange(num_samples)}
+        data["True"] = labels[:]
+        data["Pred"] = outputs[:]
+
+        df = pd.DataFrame(data)
+
+        output_dir = os.path.join(
+            self.config["save_dir"],
+            self.config["log_name"],
+            "outputs",
+        )
+        # Save DataFrame to a CSV file
+        df.to_csv(
+            os.path.join(output_dir, "test_outputs.csv"),
+            mode="a",
+        )
 
     def configure_optimizers(self):
         # Choose the optimizer based on input parameter

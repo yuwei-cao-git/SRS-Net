@@ -19,7 +19,8 @@ def load_tile_names(file_path):
         tile_names (list): List of tile names.
     """
     with open(file_path, "r") as f:
-        tile_names = f.read().splitlines()
+        tile_names = list(set(f.read().splitlines()))
+        print(f"{len(tile_names)} tiles in {file_path}")
     return tile_names
 
 

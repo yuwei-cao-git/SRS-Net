@@ -50,7 +50,7 @@ def train(config):
         max_epochs=config["epochs"],
         logger=[wandb_logger],
         callbacks=[early_stopping, checkpoint_callback],
-        num_nodes="auto",
+        num_nodes=1,
         devices="auto",
         strategy="ddp",
     )

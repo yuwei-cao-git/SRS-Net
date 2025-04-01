@@ -138,7 +138,10 @@ class TreeSpeciesDataset(Dataset):
         mask_tensor = torch.from_numpy(mask).bool()  # Shape: (H, W)
 
         # Return the list of input tensors for each season, the target tensor, and the mask tensor
-        return input_data_list, target_tensor, mask_tensor
+        if len(self.datasets) > 1:
+            return input_data_list, target_tensor, mask_tensor
+        else:
+            return input_data_list[0], target_tensor, mask_tensor
 
 
 class TreeSpeciesDataModule(pl.LightningDataModule):

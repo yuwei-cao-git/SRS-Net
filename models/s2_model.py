@@ -81,9 +81,16 @@ class Model(pl.LightningModule):
                         + 38  # all seasons + dem (1) + climate (36) + ph (1)
                     )  # If no MF module, concatenating all seasons directly
             else:
+                if self.config["season"] == "cli4seasons":
+                    add_channel = 36
+                elif self.config["season"] == "all":
+                    add_channel = 38
+                else:
+                    add_channel = 1
                 self.mf_module = MF(
                     channels=self.n_bands,
                     seasons=self.num_season,
+                    rest_channel=add_channel,
                     spatial_att=self.fusion_mode == "cs_mf",
                 )
                 total_input_channels = (
@@ -152,7 +159,7 @@ class Model(pl.LightningModule):
                 # Concatenate all seasons directly if no MF module
                 fused_features = torch.cat(inputs, dim=1)
             else:
-                fused_features = torch.FloatTensor(inputs)
+                fused_features = inputs
         logits, _ = self.model(fused_features)
         preds = F.softmax(logits, dim=1)
         return preds

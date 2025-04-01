@@ -25,19 +25,28 @@ class Model(pl.LightningModule):
         super(Model, self).__init__()
         self.config = config
         self.fusion_mode = self.config["fusion_mode"]
-        self.use_fuse = True
+        self.use_fuse = False
         self.network = self.config["network"]
         self.loss = self.config["loss"]
         self.leading_loss = self.config["leading_loss"]
+        self.leading_loss = self.config["leading_loss"]
         self.season = self.config["season"]
-        self.remove_bands = self.config["remove_bands"]
-        self.num_season = 1
         if self.config["season"] == "2seasons":
             self.num_season = 2
-        if self.config["season"] == "4seasons":
+        elif self.config["season"] == "4seasons":
             self.num_season = 4
-        if self.config["season"] == "all":
+        elif (
+            self.config["season"] == "cli4seasons"
+            or self.config["season"] == "dem4seasons"
+            or self.config["season"] == "ph4seasons"
+        ):
             self.num_season = 5
+        elif self.config["season"] == "all":
+            self.num_season = 7
+        else:
+            self.num_season = 1
+
+        self.remove_bands = self.config["remove_bands"]
         if self.config["resolution"] == "10m":
             if self.remove_bands:
                 self.n_bands = 9
@@ -45,6 +54,7 @@ class Model(pl.LightningModule):
                 self.n_bands = 12
         else:
             self.n_bands = 9
+
         if self.num_season != 1:
             # MF Module for seasonal fusion (each season has `n_bands` channels)
             if self.fusion_mode == "sf":
@@ -52,30 +62,46 @@ class Model(pl.LightningModule):
                     n_inputs=self.num_season, in_ch=self.n_bands, n_filters=64
                 )
                 total_input_channels = 64
+                self.use_fuse = True
             elif self.fusion_mode == "stack":
-                if self.num_season != 5:
+                if self.num_season < 5:
                     total_input_channels = (
                         self.n_bands * self.num_season
                     )  # If no MF module, concatenating all seasons directly
+                elif self.num_season == 5:
+                    if self.config["season"] == "cli4seasons":
+                        total_input_channels = (
+                            self.n_bands * 4 + 36  # all seasons + climate (36)
+                        )
+                    else:
+                        total_input_channels = (
+                            self.n_bands * 4 + 1  # all seasons + dem (1) / ph (1)
+                        )
                 else:
                     total_input_channels = (
                         self.n_bands * 4
                         + 38  # all seasons + dem (1) + climate (36) + ph (1)
                     )  # If no MF module, concatenating all seasons directly
-                self.use_fuse = False
             else:
+                if self.config["season"] == "cli4seasons":
+                    add_channel = 36
+                elif self.config["season"] == "all":
+                    add_channel = 38
+                else:
+                    add_channel = 1
                 self.mf_module = MF(
                     channels=self.n_bands,
                     seasons=self.num_season,
+                    rest_channel=add_channel,
                     spatial_att=self.fusion_mode == "cs_mf",
                 )
                 total_input_channels = (
                     16
                     * self.num_season  # MF module outputs 64 channels after processing four seasons
                 )
+                self.use_fuse = True
         else:
             total_input_channels = self.n_bands
-            self.use_fuse = False
         # Define the U-Net architecture with or without Residual connections
         if self.network == "resunet":
             # Using ResUNet

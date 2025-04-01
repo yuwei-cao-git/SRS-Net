@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 import torchvision.transforms.v2 as transforms
 import numpy as np
+import os
 
 from .blocks import MF
 from .unet import UNet
@@ -289,7 +290,11 @@ class Model(pl.LightningModule):
                 on_epoch=True,
             )
         if stage == "test":
-            return valid_pixel_lead_true, valid_pixel_lead_preds, loss_pixel_leads
+            return (
+                valid_pixel_lead_true.view(-1),
+                valid_pixel_lead_preds.view(-1),
+                loss_pixel_leads,
+            )
         else:
             return loss_pixel_leads
 
@@ -340,10 +345,10 @@ class Model(pl.LightningModule):
             outputs, targets, masks, stage="test"
         )
 
-        self.save_to_file(labels, preds, self.config["classes"])
+        self.save_to_file(labels, preds)
         return loss
 
-    def save_to_file(self, labels, outputs, classes):
+    def save_to_file(self, labels, outputs):
         # Convert tensors to numpy arrays or lists as necessary
         labels = labels.cpu().numpy() if isinstance(labels, torch.Tensor) else labels
         outputs = (

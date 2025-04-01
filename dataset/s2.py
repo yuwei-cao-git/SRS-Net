@@ -178,6 +178,30 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
                 "rmf_s2/fall/tiles_128",
                 "rmf_s2/winter/tiles_128",
             ]
+        elif self.config["season"] == "ph4seasons":
+            self.datasets_to_use = [
+                "rmf_s2/spring/tiles_128",
+                "rmf_s2/summer/tiles_128",
+                "rmf_s2/fall/tiles_128",
+                "rmf_s2/winter/tiles_128",
+                "rmf_phenology/tiles_128",  # 36 bands
+            ]
+        elif self.config["season"] == "cli4seasons":
+            self.datasets_to_use = [
+                "rmf_s2/spring/tiles_128",
+                "rmf_s2/summer/tiles_128",
+                "rmf_s2/fall/tiles_128",
+                "rmf_s2/winter/tiles_128",
+                "rmf_spl_climate/tiles_128",  # 1 band
+            ]
+        elif self.config["season"] == "dem4seasons":
+            self.datasets_to_use = [
+                "rmf_s2/spring/tiles_128",
+                "rmf_s2/summer/tiles_128",
+                "rmf_s2/fall/tiles_128",
+                "rmf_s2/winter/tiles_128",
+                "rmf_spl_dem/tiles_128",  # 1 band
+            ]
         elif self.config["season"] == "all":
             self.datasets_to_use = [
                 "rmf_s2/spring/tiles_128",

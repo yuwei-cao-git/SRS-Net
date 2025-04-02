@@ -27,25 +27,6 @@ class Model(pl.LightningModule):
         self.config = config
         self.fusion_mode = self.config["fusion_mode"]
         self.use_fuse = False
-        self.network = self.config["network"]
-        self.loss = self.config["loss"]
-        self.leading_loss = self.config["leading_loss"]
-        self.season = self.config["season"]
-        if self.config["season"] == "2seasons":
-            self.num_season = 2
-        elif self.config["season"] == "4seasons":
-            self.num_season = 4
-        elif (
-            self.config["season"] == "cli4seasons"
-            or self.config["season"] == "dem4seasons"
-            or self.config["season"] == "ph4seasons"
-        ):
-            self.num_season = 5
-        elif self.config["season"] == "all":
-            self.num_season = 7
-        else:
-            self.num_season = 1
-
         self.remove_bands = self.config["remove_bands"]
         if self.config["resolution"] == "10m":
             if self.remove_bands:
@@ -54,12 +35,51 @@ class Model(pl.LightningModule):
                 self.n_bands = 12
         else:
             self.n_bands = 9
+        self.network = self.config["network"]
+        self.loss = self.config["loss"]
+        self.leading_loss = self.config["leading_loss"]
+        self.season = self.config["season"]
+        if self.config["season"] == "2seasons":
+            self.num_season = 2
+            input_channels = [self.n_bands, self.n_bands]
+        elif self.config["season"] == "4seasons":
+            self.num_season = 4
+            input_channels = [self.n_bands, self.n_bands, self.n_bands, self.n_bands]
+        elif self.config["season"] == "cli4seasons":
+            self.num_season = 5
+            input_channels = [
+                self.n_bands,
+                self.n_bands,
+                self.n_bands,
+                self.n_bands,
+                36,
+            ]
+        elif (
+            self.config["season"] == "dem4seasons"
+            or self.config["season"] == "ph4seasons"
+        ):
+            self.num_season = 5
+            input_channels = [self.n_bands, self.n_bands, self.n_bands, self.n_bands, 1]
+        elif self.config["season"] == "all":
+            self.num_season = 7
+            input_channels = [
+                self.n_bands,
+                self.n_bands,
+                self.n_bands,
+                self.n_bands,
+                1,
+                36,
+                1,
+            ]
+
+        else:
+            self.num_season = 1
 
         if self.num_season != 1:
             # MF Module for seasonal fusion (each season has `n_bands` channels)
             if self.fusion_mode == "sf":
                 self.mf_module = FusionBlock(
-                    n_inputs=self.num_season, in_ch=self.n_bands, n_filters=64
+                    n_inputs=self.num_season, in_chs=input_channels, n_filters=64
                 )
                 total_input_channels = 64
                 self.use_fuse = True

@@ -39,7 +39,7 @@ class FusionBlock(nn.Module):
     def __init__(
         self,
         n_inputs,
-        in_ch,
+        in_chs,
         n_filters,
         activation=nn.LeakyReLU(),
         spatial_dropout=0,
@@ -60,7 +60,7 @@ class FusionBlock(nn.Module):
                     activation=self.activation,
                     spatial_dropout=self.spatial_dropout,
                 )
-                for _ in range(n_inputs)
+                for in_ch in in_chs
             ]
         )
 

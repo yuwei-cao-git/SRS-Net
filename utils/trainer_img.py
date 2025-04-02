@@ -16,13 +16,11 @@ def train(config):
     wandb_logger = WandbLogger(
         project="SRS-Net",
         group="v3",
-        name=config["log_name"],
         save_dir=config["save_dir"],
     )
 
     csv_logger = CSVLogger(
         save_dir=config["save_dir"],
-        name=config["log_name"],
     )
 
     # Initialize the DataModule

@@ -368,7 +368,6 @@ class Model(pl.LightningModule):
 
         output_dir = os.path.join(
             self.config["save_dir"],
-            self.config["log_name"],
             "outputs",
         )
         os.makedirs(output_dir, exist_ok=True)

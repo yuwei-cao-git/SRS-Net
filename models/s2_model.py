@@ -347,7 +347,7 @@ class Model(pl.LightningModule):
         labels, preds, loss = self.compute_loss_and_metrics(
             outputs, targets, masks, stage="test"
         )
-        self.save_to_file(labels, preds)
+        self.save_to_file(labels, preds, self.config["classes"])
         return loss
 
     def save_to_file(self, labels, outputs, classes):

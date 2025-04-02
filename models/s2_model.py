@@ -1,20 +1,22 @@
+import os
+import pandas as pd
+import numpy as np
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-import torchvision.transforms.v2 as transforms
-
-from .blocks import MF
-from .unet import UNet
-from .ResUnet import ResUnet
-from .TransResUnet import FusionBlock
-
 from torchmetrics.regression import R2Score
 from torchmetrics.classification import (
     MulticlassF1Score,
     ConfusionMatrix,
     MulticlassAccuracy,
 )
+
+from .blocks import MF
+from .unet import UNet
+from .ResUnet import ResUnet
+from .TransResUnet import FusionBlock
 from .loss import calc_masked_loss
 
 
@@ -296,7 +298,14 @@ class Model(pl.LightningModule):
                 on_epoch=True,
             )
 
-        return loss
+        if stage == "test":
+            return (
+                valid_outputs,
+                valid_targets,
+                loss,
+            )
+        else:
+            return loss
 
     def training_step(self, batch, batch_idx):
         inputs, targets, masks = batch
@@ -335,7 +344,39 @@ class Model(pl.LightningModule):
         inputs, targets, masks = batch
         outputs = self(inputs)  # Forward pass
 
-        return self.compute_loss_and_metrics(outputs, targets, masks, stage="test")
+        labels, preds, loss = self.compute_loss_and_metrics(
+            outputs, targets, masks, stage="test"
+        )
+        self.save_to_file(labels, preds)
+        return loss
+
+    def save_to_file(self, labels, outputs, classes):
+        # Convert tensors to numpy arrays or lists as necessary
+        labels = labels.cpu().numpy() if isinstance(labels, torch.Tensor) else labels
+        outputs = (
+            outputs.cpu().numpy() if isinstance(outputs, torch.Tensor) else outputs
+        )
+        num_samples = labels.shape[0]
+        data = {"SampleID": np.arange(num_samples)}
+
+        # Add true and predicted values for each class
+        for i, class_name in enumerate(classes):
+            data[f"True_{class_name}"] = labels[:, i]
+            data[f"Pred_{class_name}"] = outputs[:, i]
+
+        df = pd.DataFrame(data)
+
+        output_dir = os.path.join(
+            self.config["save_dir"],
+            self.config["log_name"],
+            "outputs",
+        )
+        os.makedirs(output_dir, exist_ok=True)
+        # Save DataFrame to a CSV file
+        df.to_csv(
+            os.path.join(output_dir, f"{self.config['log_name']}_test_outputs.csv"),
+            mode="a",
+        )
 
     def configure_optimizers(self):
         # Choose the optimizer based on input parameter
@@ -344,7 +385,9 @@ class Model(pl.LightningModule):
                 self.parameters(), lr=self.learning_rate, betas=(0.9, 0.999), eps=1e-08
             )
         elif self.optimizer_type == "adamW":
-            optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
+            optimizer = torch.optim.AdamW(
+                self.parameters(), lr=self.learning_rate, weight_decay=1e-2
+            )
         elif self.optimizer_type == "sgd":
             optimizer = torch.optim.SGD(
                 self.parameters(),
@@ -379,6 +422,11 @@ class Model(pl.LightningModule):
                 eta_min=0,
                 last_epoch=-1,
                 verbose=False,
+            )
+            return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        elif self.scheduler_type == "cosinewarmup":
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                optimizer, T_0=10
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         else:

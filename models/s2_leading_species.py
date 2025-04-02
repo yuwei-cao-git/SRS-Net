@@ -1,22 +1,21 @@
 import pandas as pd
+import numpy as np
+import os
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-import torchvision.transforms.v2 as transforms
-import numpy as np
-import os
-
-from .blocks import MF
-from .unet import UNet
-from .ResUnet import ResUnet
-from .TransResUnet import FusionBlock
-
 from torchmetrics.classification import (
     MulticlassF1Score,
     ConfusionMatrix,
     MulticlassAccuracy,
 )
+
+from .blocks import MF
+from .unet import UNet
+from .ResUnet import ResUnet
+from .TransResUnet import FusionBlock
 from .loss import apply_mask, focal_loss_multiclass
 
 
@@ -29,7 +28,6 @@ class Model(pl.LightningModule):
         self.use_fuse = False
         self.network = self.config["network"]
         self.loss = self.config["loss"]
-        self.leading_loss = self.config["leading_loss"]
         self.leading_loss = self.config["leading_loss"]
         self.season = self.config["season"]
         if self.config["season"] == "2seasons":
@@ -366,9 +364,10 @@ class Model(pl.LightningModule):
             self.config["log_name"],
             "outputs",
         )
+        os.makedirs(output_dir, exist_ok=True)
         # Save DataFrame to a CSV file
         df.to_csv(
-            os.path.join(output_dir, "test_outputs.csv"),
+            os.path.join(output_dir, f"{self.config['log_name']}_test_outputs.csv"),
             mode="a",
         )
 
@@ -414,6 +413,11 @@ class Model(pl.LightningModule):
                 eta_min=0,
                 last_epoch=-1,
                 verbose=False,
+            )
+            return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        elif self.scheduler_type == "cosinewarmup":
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                optimizer, T_0=10
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         else:

@@ -60,7 +60,6 @@ def main():
         help="Use fuse modes in seasonal feature fusion",
     )
     parser.add_argument("--transforms", default="random")
-    parser.add_argument("--gpus", type=int, default=torch.cuda.device_count())
     parser.add_argument(
         "--season", default="4seasons", type=str, help="season(s) for training"
     )
@@ -82,7 +81,7 @@ def main():
     params["save_dir"] = (
         params["save_dir"]
         if params["save_dir"] is not None
-        else os.path.join(os.getcwd(), "img_logs", params["log_name"])
+        else os.path.join(os.getcwd(), "img_logs")
     )
     prop_weights = [
         0.13429631,

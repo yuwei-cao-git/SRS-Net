@@ -1,17 +1,28 @@
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from lightning.pytorch.loggers import WandbLogger
+from pytorch_lightning.callbacks import (
+    ModelCheckpoint,
+    EarlyStopping,
+    LearningRateMonitor,
+)
+from lightning.pytorch.loggers import WandbLogger, CSVLogger
 from dataset.s2 import TreeSpeciesDataModule
+import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def train(config):
-    seed_everything(1)
+    seed_everything(123)
 
     wandb_logger = WandbLogger(
         project="SRS-Net",
         group="v3",
         name=config["log_name"],
         save_dir=config["save_dir"],
+    )
+
+    csv_logger = CSVLogger(
+        save_dir=config["save_dir"],
+        name=config["log_name"],
     )
 
     # Initialize the DataModule
@@ -45,11 +56,14 @@ def train(config):
         mode="min",  # We want to minimize the validation loss
     )
 
+    # Add LearningRateMonitor
+    lr_monitor = LearningRateMonitor(logging_interval="step")  # or 'epoch'
+
     # Create a PyTorch Lightning Trainer
     trainer = Trainer(
         max_epochs=config["epochs"],
-        logger=[wandb_logger],
-        callbacks=[early_stopping, checkpoint_callback],
+        logger=[wandb_logger, csv_logger],
+        callbacks=[early_stopping, checkpoint_callback, lr_monitor],
         num_nodes=1,
         devices="auto",
         strategy="ddp",
@@ -58,8 +72,22 @@ def train(config):
     # Train the model
     trainer.fit(model, data_module)
 
-    # Save the best model after training
-    # trainer.save_checkpoint(os.path.join(config["save_dir"], "final_model.pt"))
+    metrics = pd.read_csv(f"{csv_logger.log_dir}/metrics.csv")
+
+    aggreg_metrics = []
+
+    agg_col = "epoch"
+    for i, dfg in metrics.groupby(agg_col):
+        agg = dict(dfg.mean())
+        agg[agg_col] = i
+        aggreg_metrics.append(agg)
+
+    df_metrics = pd.DataFrame(aggreg_metrics)
+    df_metrics[["train_loss_epoch", "val_loss_epoch"]].plot(
+        grid=True, legend=True, xlabel="Epoch", ylabel="Loss"
+    )
+
+    plt.savefig(f"{csv_logger.log_dir}/loss.png")
 
     # Test the model after training
     trainer.test(model, data_module)

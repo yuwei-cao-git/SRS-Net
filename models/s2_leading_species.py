@@ -360,8 +360,9 @@ class Model(pl.LightningModule):
         df = pd.DataFrame(data)
 
         output_dir = os.path.join(
-            self.config["save_dir"],
-            "outputs",
+            self.config["save_dir"], 
+            self.config["log_name"],
+            "outputs"
         )
         os.makedirs(output_dir, exist_ok=True)
         # Save DataFrame to a CSV file
@@ -377,7 +378,7 @@ class Model(pl.LightningModule):
                 self.parameters(), lr=self.learning_rate, betas=(0.9, 0.999), eps=1e-08
             )
         elif self.optimizer_type == "adamW":
-            optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
+            optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=1e-2)
         elif self.optimizer_type == "sgd":
             optimizer = torch.optim.SGD(
                 self.parameters(),
@@ -416,7 +417,7 @@ class Model(pl.LightningModule):
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosinewarmup":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optimizer, T_0=30
+                optimizer, T_0=10
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         else:

@@ -81,7 +81,7 @@ def main():
     params["save_dir"] = (
         params["save_dir"]
         if params["save_dir"] is not None
-        else os.path.join(os.getcwd(), "img_logs", params["log_name"])
+        else os.path.join(os.getcwd(), "img_logs")
     )
     prop_weights = [
         0.13429631,

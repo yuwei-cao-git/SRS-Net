@@ -5,23 +5,36 @@ from pytorch_lightning.callbacks import (
     LearningRateMonitor,
 )
 from lightning.pytorch.loggers import WandbLogger, CSVLogger
+
 from dataset.s2 import TreeSpeciesDataModule
+
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 
 
 def train(config):
     seed_everything(123)
-
+    save_dir = os.path.join(config["save_dir"], config["log_name"])
+    wandb_log_dir = os.path.join(save_dir, "wandb")
+    csv_log_dir = os.path.join(save_dir, "outputs")
+    chk_dir = os.path.join(save_dir, "checkpoints")
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir, exist_ok=True)
+    if not os.path.exists(wandb_log_dir):
+        os.mkdir(wandb_log_dir)
+    if not os.path.exists(chk_dir):
+        os.mkdir(chk_dir)
+        
     wandb_logger = WandbLogger(
         project="SRS-Net",
         group="v3",
         name=config["log_name"],
-        save_dir=config["save_dir"],
+        save_dir=wandb_log_dir,
     )
 
     csv_logger = CSVLogger(
-        save_dir=config["save_dir"],
+        save_dir=csv_log_dir
     )
 
     # Initialize the DataModule
@@ -47,7 +60,7 @@ def train(config):
     checkpoint_callback = ModelCheckpoint(
         monitor="val_loss",  # Track the validation loss
         filename="final_model",
-        dirpath=config["save_dir"],
+        dirpath=chk_dir,
         save_top_k=1,  # Only save the best model
         mode="min",  # We want to minimize the validation loss
     )

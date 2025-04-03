@@ -387,10 +387,10 @@ class Model(pl.LightningModule):
         df = pd.DataFrame(data)
 
         output_dir = os.path.join(
-            self.config["save_dir"],
-            "outputs",
+            self.config["save_dir"], 
+            self.config["log_name"],
+            "outputs"
         )
-        os.makedirs(output_dir, exist_ok=True)
         # Save DataFrame to a CSV file
         df.to_csv(
             os.path.join(output_dir, f"{self.config['log_name']}_test_outputs.csv"),
@@ -435,13 +435,7 @@ class Model(pl.LightningModule):
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20)
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosine":
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                optimizer,
-                T_max=50,
-                eta_min=0,
-                last_epoch=-1,
-                verbose=False,
-            )
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50)
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosinewarmup":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(

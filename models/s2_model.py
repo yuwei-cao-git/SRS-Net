@@ -432,10 +432,10 @@ class Model(pl.LightningModule):
         elif self.scheduler_type == "asha":
             return optimizer
         elif self.scheduler_type == "steplr":
-            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20)
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2)
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosine":
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50)
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosinewarmup":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(

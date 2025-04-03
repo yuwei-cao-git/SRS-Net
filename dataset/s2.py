@@ -227,47 +227,48 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
         Sets up the dataset for train, validation, and test splits.
         """
         # Create datasets for train, validation, and test
-        self.train_dataset = TreeSpeciesDataset(
-            self.tile_names["train"],
-            self.processed_dir,
-            self.datasets_to_use,
-            self.resolution,
-            augment=None,
-            remove_bands=self.remove_bands,
-        )
-        if self.config["transforms"] != "None":
-            aug_train_dataset = TreeSpeciesDataset(
+        if stage == "fit":
+            self.train_dataset = TreeSpeciesDataset(
                 self.tile_names["train"],
                 self.processed_dir,
                 self.datasets_to_use,
                 self.resolution,
-                augment=self.config["transforms"],
+                augment=None,
                 remove_bands=self.remove_bands,
             )
-            self.train_dataset = torch.utils.data.ConcatDataset(
-                [self.train_dataset, aug_train_dataset]
+            if self.config["transforms"] != "None":
+                aug_train_dataset = TreeSpeciesDataset(
+                    self.tile_names["train"],
+                    self.processed_dir,
+                    self.datasets_to_use,
+                    self.resolution,
+                    augment=self.config["transforms"],
+                    remove_bands=self.remove_bands,
+                )
+                self.train_dataset = torch.utils.data.ConcatDataset(
+                    [self.train_dataset, aug_train_dataset]
+                )
+            self.val_dataset = TreeSpeciesDataset(
+                self.tile_names["val"],
+                self.processed_dir,
+                self.datasets_to_use,
+                self.resolution,
+                remove_bands=self.remove_bands,
             )
-        self.val_dataset = TreeSpeciesDataset(
-            self.tile_names["val"],
-            self.processed_dir,
-            self.datasets_to_use,
-            self.resolution,
-            remove_bands=self.remove_bands,
-        )
-        self.test_dataset = TreeSpeciesDataset(
-            self.tile_names["test"],
-            self.processed_dir,
-            self.datasets_to_use,
-            self.resolution,
-            remove_bands=self.remove_bands,
-        )
+        if stage == "test":
+            self.test_dataset = TreeSpeciesDataset(
+                self.tile_names["test"],
+                self.processed_dir,
+                self.datasets_to_use,
+                self.resolution,
+                remove_bands=self.remove_bands,
+            )
 
     def train_dataloader(self):
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            num_workers=8,
             drop_last=True,
         )
 
@@ -276,7 +277,6 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
             self.val_dataset,
             batch_size=self.batch_size,
             shuffle=False,
-            num_workers=8,
             drop_last=False,
         )
 
@@ -285,6 +285,5 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
             self.test_dataset,
             batch_size=self.batch_size,
             shuffle=False,
-            num_workers=8,
             drop_last=False,
         )

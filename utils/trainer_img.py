@@ -27,9 +27,6 @@ def train(config):
     # Initialize the DataModule
     data_module = TreeSpeciesDataModule(config)
 
-    # Call setup explicitly to initialize datasets
-    data_module.setup()
-
     # Use the calculated input channels from the DataModule to initialize the model
     if config["task"] == "regression":
         from models.s2_model import Model

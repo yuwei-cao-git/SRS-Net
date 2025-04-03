@@ -155,6 +155,8 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
             num_workers (int): Number of workers for DataLoader.
         """
         super().__init__()
+        self.save_hyperparameters()
+
         self.config = config
         # Tile names for train, validation, and test
         # User specifies which datasets to use

@@ -155,7 +155,6 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
             num_workers (int): Number of workers for DataLoader.
         """
         super().__init__()
-        self.save_hyperparameters()
 
         self.config = config
         # Tile names for train, validation, and test
@@ -272,6 +271,7 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=True,
             drop_last=True,
+            num_workers=8,
         )
 
     def val_dataloader(self):
@@ -280,6 +280,7 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             drop_last=False,
+            num_workers=8,
         )
 
     def test_dataloader(self):
@@ -288,4 +289,5 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             drop_last=False,
+            num_workers=8,
         )

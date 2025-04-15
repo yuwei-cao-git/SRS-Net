@@ -408,12 +408,7 @@ class Model(pl.LightningModule):
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosine":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                optimizer,
-                T_max=50,
-                eta_min=0,
-                last_epoch=-1,
-                verbose=False,
-            )
+                optimizer, T_max=10)
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosinewarmup":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(

@@ -71,7 +71,6 @@ class Model(pl.LightningModule):
                 36,
                 1,
             ]
-
         else:
             self.num_season = 1
 

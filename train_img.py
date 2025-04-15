@@ -83,17 +83,8 @@ def main():
         if params["save_dir"] is not None
         else os.path.join(os.getcwd(), "img_logs")
     )
-    prop_weights = [
-        0.13429631,
-        0.02357711,
-        0.05467328,
-        0.04353036,
-        0.02462899,
-        0.03230562,
-        0.2605792,
-        0.00621396,
-        0.42019516,
-    ]
+    # prop_weights = [0.13429631, 0.02357711, 0.05467328, 0.04353036, 0.02462899, 0.03230562, 0.2605792, 0.00621396, 0.42019516,]
+    prop_weights = [0.126, 0.018, 0.055, 0.043, 0.041, 0.228, 0.021, 0.005, 0.461]
     prop_weights = torch.from_numpy(np.array(prop_weights)).float()
     params["prop_weights"] = (
         prop_weights if params["loss"].startswith("w") else torch.ones(9)

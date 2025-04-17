@@ -13,10 +13,9 @@ from torchmetrics.classification import (
     MulticlassAccuracy,
 )
 
-from .blocks import MF
+from .blocks import MF, FusionBlock
 from .unet import UNet
 from .ResUnet import ResUnet
-from .TransResUnet import FusionBlock
 from .loss import calc_masked_loss
 
 

@@ -36,3 +36,5 @@ scripts/local_train.sh
 augmentation/sr/README.txt
 
 models/TransResUnet.py
+
+vis/

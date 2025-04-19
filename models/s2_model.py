@@ -16,7 +16,7 @@ from torchmetrics.classification import (
 from .blocks import MF, FusionBlock
 from .unet import UNet
 from .ResUnet import ResUnet
-from .loss import calc_masked_loss
+from .loss import calc_masked_loss, apply_mask
 
 
 # Updating UNet to incorporate residual connections and MF module
@@ -184,38 +184,6 @@ class Model(pl.LightningModule):
         preds = F.softmax(logits, dim=1)
         return preds
 
-    def apply_mask(self, outputs, targets, mask, multi_class=True):
-        """
-        Applies the mask to outputs and targets to exclude invalid data points.
-
-        Args:
-            outputs: Model predictions (batch_size, num_classes, H, W) for images or (batch_size, num_points, num_classes) for point clouds.
-            targets: Ground truth labels (same shape as outputs).
-            mask: Boolean mask indicating invalid data points (True for invalid).
-
-        Returns:
-            valid_outputs: Masked and reshaped outputs.
-            valid_targets: Masked and reshaped targets.
-        """
-        # Expand the mask to match outputs and targets
-        if multi_class:
-            expanded_mask = mask.unsqueeze(1).expand_as(
-                outputs
-            )  # Shape: (batch_size, num_classes, H, W)
-            num_classes = outputs.size(1)
-        else:
-            expanded_mask = mask
-
-        # Apply mask to exclude invalid data points
-        valid_outputs = outputs[~expanded_mask]
-        valid_targets = targets[~expanded_mask]
-        # Reshape to (-1, num_classes)
-        if multi_class:
-            valid_outputs = valid_outputs.view(-1, num_classes)
-            valid_targets = valid_targets.view(-1, num_classes)
-
-        return valid_outputs, valid_targets
-
     def compute_loss_and_metrics(self, outputs, targets, masks, stage="val"):
         """
         Computes the masked loss, R² score, and logs the metrics.
@@ -229,7 +197,7 @@ class Model(pl.LightningModule):
         Returns:
         - loss: The computed masked loss.
         """
-        valid_outputs, valid_targets = self.apply_mask(
+        valid_outputs, valid_targets = apply_mask(
             outputs, targets, masks, multi_class=True
         )
 
@@ -237,7 +205,7 @@ class Model(pl.LightningModule):
         pred_labels = torch.argmax(outputs, dim=1)
         true_labels = torch.argmax(targets, dim=1)
         # Apply mask to leading species labels
-        valid_preds, valid_true = self.apply_mask(
+        valid_preds, valid_true = apply_mask(
             pred_labels, true_labels, masks, multi_class=False
         )
         if stage == "train":
@@ -248,11 +216,6 @@ class Model(pl.LightningModule):
             )
         else:
             loss = self.criterion(valid_outputs, valid_targets)
-
-        if self.leading_loss and stage == "train":
-            correct = (valid_preds.view(-1) == valid_true.view(-1)).float()
-            loss_pixel_leads = 1 - correct.mean()  # 1 - accuracy as pseudo-loss
-            loss += loss_pixel_leads
 
         # Round outputs to two decimal place
         valid_outputs = torch.round(valid_outputs, decimals=1)
@@ -317,9 +280,9 @@ class Model(pl.LightningModule):
             )
 
         if stage == "test":
-            return (
-                valid_outputs,
+            return ( 
                 valid_targets,
+                valid_outputs,
                 loss,
             )
         else:

@@ -101,4 +101,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # python train_img.py --resolution "20m" --loss "wce" --task "classify" --log_name "unet_wce_20m_leading_classify" --batch_size 16 --epoch 2
+    # python train_img.py --resolution "20m" --loss "ce" --task "classify" --log_name "unet_ce_20m_leading_classify" --batch_size 16 --epoch 2
+    # python train_img.py --resolution "20m" --loss "ce" --task "classify" --log_name "unet_ce_20m_leading_classify" --batch_size 16 --epoch 2

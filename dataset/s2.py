@@ -121,15 +121,14 @@ class TreeSpeciesDataset(Dataset):
             target_data = src.read()  # (num_bands, H, W)
             nodata_value_label = src.nodata  # NoData value for the labels
 
+            mask = np.zeros_like(
+                target_data[0], dtype=bool
+            )  # Assume all valid if no NoData value
             # Create a NoData mask for the target data
-            if nodata_value_label is not None:
-                mask = np.any(
-                    target_data == nodata_value_label, axis=0
-                )  # Collapse bands to (H, W)
-            else:
-                mask = np.zeros_like(
-                    target_data[0], dtype=bool
-                )  # Assume all valid if no NoData value
+            mask = np.any(
+                target_data == nodata_value_label, axis=0
+            )  # Collapse bands to (H, W)
+                
 
         # Convert the target and mask to PyTorch tensors
         target_tensor = torch.from_numpy(

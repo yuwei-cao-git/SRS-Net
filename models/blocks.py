@@ -134,7 +134,7 @@ class ChannelSpatialSELayer3D(nn.Module):
 class MF(nn.Module):  # Multi-Feature (MF) module for seasonal attention-based fusion
     def __init__(
         self, channels=12, seasons=4, rest_channel=1, spatial_att=False
-    ):  # Each season has 13 channels
+    ):  # Each season has 12 channels
         super(MF, self).__init__()
         # Channel attention for each season (spring, summer, autumn, winter)
         self.channels = channels

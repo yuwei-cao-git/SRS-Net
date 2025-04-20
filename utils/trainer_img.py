@@ -99,4 +99,10 @@ def train(config):
     plt.savefig(f"{csv_logger.log_dir}/loss.png")
 
     # Test the model after training
-    trainer.test(model, data_module)
+    # Create a new Trainer for testing (single device, no DDP)
+    test_trainer = Trainer(
+        devices=1,
+        num_nodes=1,
+        strategy=None,  # No DDP for test
+    )
+    test_trainer.test(model, data_module)

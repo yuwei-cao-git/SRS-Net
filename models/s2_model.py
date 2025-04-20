@@ -24,6 +24,7 @@ class Model(pl.LightningModule):
     def __init__(self, config):
         super(Model, self).__init__()
         self.config = config
+        self.test_csv_written = False
         self.fusion_mode = self.config["fusion_mode"]
         self.use_fuse = False
         self.remove_bands = self.config["remove_bands"]
@@ -332,15 +333,11 @@ class Model(pl.LightningModule):
         return loss
 
     def save_to_file(self, labels, outputs, classes):
-        # Convert tensors to numpy arrays or lists as necessary
         labels = labels.cpu().numpy() if isinstance(labels, torch.Tensor) else labels
-        outputs = (
-            outputs.cpu().numpy() if isinstance(outputs, torch.Tensor) else outputs
-        )
+        outputs = outputs.cpu().numpy() if isinstance(outputs, torch.Tensor) else outputs
         num_samples = labels.shape[0]
         data = {"SampleID": np.arange(num_samples)}
 
-        # Add true and predicted values for each class
         for i, class_name in enumerate(classes):
             data[f"True_{class_name}"] = labels[:, i]
             data[f"Pred_{class_name}"] = outputs[:, i]
@@ -352,11 +349,18 @@ class Model(pl.LightningModule):
             self.config["log_name"],
             "outputs"
         )
-        # Save DataFrame to a CSV file
+        os.makedirs(output_dir, exist_ok=True)  # Ensure the directory exists
+
+        output_path = os.path.join(output_dir, f"{self.config['log_name']}_test_outputs.csv")
+
         df.to_csv(
-            os.path.join(output_dir, f"{self.config['log_name']}_test_outputs.csv"),
+            output_path,
             mode="a",
+            header=not self.test_csv_written,  # Only write header on first write
+            index=False,
         )
+        self.test_csv_written = True  # Flip the flag
+
 
     def configure_optimizers(self):
         # Choose the optimizer based on input parameter

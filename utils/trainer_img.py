@@ -103,6 +103,7 @@ def train(config):
     test_trainer = Trainer(
         devices=1,
         num_nodes=1,
-        strategy=None,  # No DDP for test
+        accelerator="auto",
+        strategy="auto",  # No DDP for test
     )
     test_trainer.test(model, data_module)

@@ -25,6 +25,7 @@ class Model(pl.LightningModule):
         super(Model, self).__init__()
         self.config = config
         self.test_csv_written = False
+        self.sample_id_offset = 0
         self.fusion_mode = self.config["fusion_mode"]
         self.use_fuse = False
         self.remove_bands = self.config["remove_bands"]
@@ -336,7 +337,10 @@ class Model(pl.LightningModule):
         labels = labels.cpu().numpy() if isinstance(labels, torch.Tensor) else labels
         outputs = outputs.cpu().numpy() if isinstance(outputs, torch.Tensor) else outputs
         num_samples = labels.shape[0]
-        data = {"SampleID": np.arange(num_samples)}
+
+        # Use a running counter to avoid resetting SampleID
+        data = {"SampleID": np.arange(self.sample_id_offset, self.sample_id_offset + num_samples)}
+        self.sample_id_offset += num_samples  # Update for the next batch
 
         for i, class_name in enumerate(classes):
             data[f"True_{class_name}"] = labels[:, i]

@@ -24,6 +24,8 @@ class Model(pl.LightningModule):
     def __init__(self, config):
         super(Model, self).__init__()
         self.config = config
+        self.test_csv_written = False
+        self.sample_id_offset = 0
         self.fusion_mode = self.config["fusion_mode"]
         self.use_fuse = False
         self.network = self.config["network"]
@@ -373,7 +375,11 @@ class Model(pl.LightningModule):
             outputs.cpu().numpy() if isinstance(outputs, torch.Tensor) else outputs
         )
         num_samples = labels.shape[0]
-        data = {"SampleID": np.arange(num_samples)}
+
+        # Use a running counter to avoid resetting SampleID
+        data = {"SampleID": np.arange(self.sample_id_offset, self.sample_id_offset + num_samples)}
+        self.sample_id_offset += num_samples  # Update for the next batch
+
         data["True"] = labels[:]
         data["Pred"] = outputs[:]
 
@@ -389,7 +395,10 @@ class Model(pl.LightningModule):
         df.to_csv(
             os.path.join(output_dir, f"{self.config['log_name']}_test_outputs.csv"),
             mode="a",
+            header=not self.test_csv_written,  # Only write header on first write
+            index=False,
         )
+        self.test_csv_written = True  # Flip the flag
 
     def configure_optimizers(self):
         # Choose the optimizer based on input parameter

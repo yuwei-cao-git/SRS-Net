@@ -166,7 +166,7 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
                 join(self.processed_dir, "dataset/train_tiles.txt")
             ),
             "val": load_tile_names(join(self.processed_dir, "dataset/val_tiles.txt")),
-            "test": load_tile_names(join(self.processed_dir, "dataset/test_tiles.txt")),
+            "test": load_tile_names(join(self.processed_dir, "dataset/test_tiles.txt"))
         }
 
         if self.config["season"] == "2seasons":

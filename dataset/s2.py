@@ -118,7 +118,7 @@ class TreeSpeciesDataset(Dataset):
         label_path = os.path.join(self.processed_dir, "labels/tiles_128", tile_name)
 
         with rasterio.open(label_path) as src:
-            target_data = src.read()  # (num_bands, H, W)
+            target_data = src.read()  # (n_classes, H, W)
             nodata_value_label = src.nodata  # NoData value for the labels
 
             mask = np.zeros_like(
@@ -138,9 +138,9 @@ class TreeSpeciesDataset(Dataset):
 
         # Return the list of input tensors for each season, the target tensor, and the mask tensor
         if len(self.datasets) > 1:
-            return input_data_list, target_tensor, mask_tensor
+            return input_data_list, target_tensor, mask_tensor, tile_name
         else:
-            return input_data_list[0], target_tensor, mask_tensor
+            return input_data_list[0], target_tensor, mask_tensor, tile_name
 
 
 class TreeSpeciesDataModule(pl.LightningDataModule):

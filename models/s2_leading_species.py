@@ -21,11 +21,12 @@ from .loss import apply_mask, focal_loss_multiclass
 
 # Updating UNet to incorporate residual connections and MF module
 class Model(pl.LightningModule):
-    def __init__(self, config):
+    def __init__(self, config, vis):
         super(Model, self).__init__()
         self.config = config
         self.test_csv_written = False
         self.sample_id_offset = 0
+        self.vis_mode = vis
         self.fusion_mode = self.config["fusion_mode"]
         self.use_fuse = False
         self.network = self.config["network"]
@@ -217,22 +218,6 @@ class Model(pl.LightningModule):
                 weight=self.weights.to(pixel_logits.device),
                 ignore_index=255,
             )
-        elif self.config["loss"] == "ae" and stage == "train":
-            valid_pixel_lead_preds, valid_pixel_lead_true = apply_mask(
-                pred_lead_pixel_labels,
-                true_lead_pixel_labels,
-                img_masks,
-                multi_class=False,
-                keep_shp=False,
-            )
-            correct = (
-                valid_pixel_lead_preds.view(-1) == valid_pixel_lead_true.view(-1)
-            ).float()
-            loss_pixel_leads = 1 - correct.mean()  # 1 - accuracy as pseudo-loss
-        elif self.config["loss"] == "focal" and stage == "train":
-            loss_pixel_leads = focal_loss_multiclass(
-                pixel_logits, valid_pixel_lead_true
-            )
         else:
             loss_pixel_leads = F.nll_loss(
                 pixel_logits,
@@ -303,29 +288,36 @@ class Model(pl.LightningModule):
             )
         if stage != "train":
             self.log(
-                "{stage}_oa",
+                f"{stage}_oa",
                 oa,
                 logger=True,
                 sync_dist=sync_state,
                 on_epoch=True,
             )
         if stage == "test":
-            return (
-                valid_pixel_lead_true.view(-1),
-                valid_pixel_lead_preds.view(-1),
-                loss_pixel_leads,
-            )
+            if self.vis_mode:
+                return (
+                    valid_pixel_lead_true,
+                    valid_pixel_lead_preds,
+                    loss_pixel_leads,
+                )
+            else:
+                return (
+                    valid_pixel_lead_true.view(-1),
+                    valid_pixel_lead_preds.view(-1),
+                    loss_pixel_leads,
+                )
         else:
             return loss_pixel_leads
 
     def training_step(self, batch, batch_idx):
-        inputs, targets, masks = batch
+        inputs, targets, masks, _ = batch
         outputs = self(inputs)  # Forward pass #[batch_size, n_classes, height, width]
 
         return self.compute_loss_and_metrics(outputs, targets, masks, stage="train")
 
     def validation_step(self, batch, batch_idx):
-        inputs, targets, masks = batch
+        inputs, targets, masks, _ = batch
         outputs = self(inputs)  # Forward pass
 
         return self.compute_loss_and_metrics(outputs, targets, masks, stage="val")
@@ -358,22 +350,25 @@ class Model(pl.LightningModule):
         self.val_oa.reset()
 
     def test_step(self, batch, batch_idx):
-        inputs, targets, masks = batch
+        if self.vis_mode:
+            inputs, targets, masks, tile_names = batch
+        else:
+            inputs, targets, masks, _ = batch
         outputs = self(inputs)  # Forward pass
 
         labels, preds, loss = self.compute_loss_and_metrics(
             outputs, targets, masks, stage="test"
         )
-
-        self.save_to_file(labels, preds)
+        if self.vis_mode:
+            self.save_to_img(preds, tile_names)
+        else:
+            self.save_to_csv(labels, preds)
         return loss
 
-    def save_to_file(self, labels, outputs):
+    def save_to_csv(self, labels, outputs):
         # Convert tensors to numpy arrays or lists as necessary
         labels = labels.cpu().numpy() if isinstance(labels, torch.Tensor) else labels
-        outputs = (
-            outputs.cpu().numpy() if isinstance(outputs, torch.Tensor) else outputs
-        )
+        outputs = (outputs.cpu().numpy() if isinstance(outputs, torch.Tensor) else outputs)
         num_samples = labels.shape[0]
 
         # Use a running counter to avoid resetting SampleID
@@ -399,6 +394,43 @@ class Model(pl.LightningModule):
             index=False,
         )
         self.test_csv_written = True  # Flip the flag
+    
+    def save_to_img(self, preds, tile_names):
+        import rasterio
+        
+        # Output path
+        output_dir = os.path.join(
+            self.config["save_dir"], 
+            self.config["log_name"],
+            "outputs", "lsc_predictions"
+        )
+        os.makedirs(output_dir, exist_ok=True)
+        
+        preds = preds.detach().cpu().numpy()
+        for i, tile_name in enumerate(tile_names):
+            # preds[i]: Tensor of shape (n_classes, H, W)
+            # Path to the original label to get spatial info
+            label_path = os.path.join(
+                self.config["data_dir"],
+                self.config["resolution"],
+                "labels/tiles_128",
+                tile_name,
+            )
+
+            with rasterio.open(label_path) as src:
+                meta = src.meta.copy()
+
+            # Update metadata for prediction output
+            meta.update({
+                "count": 1,
+                "dtype": np.uint8,
+                "driver": "GTiff"
+            })
+
+            out_path = os.path.join(output_dir, tile_name)
+
+            with rasterio.open(out_path, 'w', **meta) as dst:
+                dst.write(preds[i], 1)  # Write to band 1
 
     def configure_optimizers(self):
         # Choose the optimizer based on input parameter

@@ -21,11 +21,12 @@ from .loss import calc_masked_loss, apply_mask
 
 # Updating UNet to incorporate residual connections and MF module
 class Model(pl.LightningModule):
-    def __init__(self, config):
+    def __init__(self, config, vis):
         super(Model, self).__init__()
         self.config = config
         self.test_csv_written = False
         self.sample_id_offset = 0
+        self.vis_mode = vis
         self.fusion_mode = self.config["fusion_mode"]
         self.use_fuse = False
         self.remove_bands = self.config["remove_bands"]
@@ -282,6 +283,10 @@ class Model(pl.LightningModule):
             )
 
         if stage == "test":
+            if self.vis_mode:
+                valid_outputs, valid_targets = apply_mask(
+                    outputs, targets, masks, multi_class=True, keep_shp=True
+                )
             return ( 
                 valid_targets,
                 valid_outputs,
@@ -291,13 +296,13 @@ class Model(pl.LightningModule):
             return loss
 
     def training_step(self, batch, batch_idx):
-        inputs, targets, masks = batch
+        inputs, targets, masks, _ = batch
         outputs = self(inputs)  # Forward pass #[batch_size, n_classes, height, width]
 
         return self.compute_loss_and_metrics(outputs, targets, masks, stage="train")
 
     def validation_step(self, batch, batch_idx):
-        inputs, targets, masks = batch
+        inputs, targets, masks, _ = batch
         outputs = self(inputs)  # Forward pass
 
         return self.compute_loss_and_metrics(outputs, targets, masks, stage="val")
@@ -324,16 +329,23 @@ class Model(pl.LightningModule):
         self.val_f1.reset()
 
     def test_step(self, batch, batch_idx):
-        inputs, targets, masks = batch
+        if self.vis_mode:
+            inputs, targets, masks, tile_names = batch
+        else:
+            inputs, targets, masks, _ = batch
         outputs = self(inputs)  # Forward pass
 
         labels, preds, loss = self.compute_loss_and_metrics(
             outputs, targets, masks, stage="test"
         )
-        self.save_to_file(labels, preds, self.config["classes"])
+        if self.vis_mode:
+            preds = torch.round(preds, decimals=1)
+            self.save_to_image(preds, tile_names)
+        else:
+            self.save_to_csv(labels, preds, self.config["classes"])
         return loss
 
-    def save_to_file(self, labels, outputs, classes):
+    def save_to_csv(self, labels, outputs, classes):
         labels = labels.cpu().numpy() if isinstance(labels, torch.Tensor) else labels
         outputs = outputs.cpu().numpy() if isinstance(outputs, torch.Tensor) else outputs
         num_samples = labels.shape[0]
@@ -364,6 +376,43 @@ class Model(pl.LightningModule):
             index=False,
         )
         self.test_csv_written = True  # Flip the flag
+        
+    def save_to_image(self, preds, tile_names):
+        import rasterio
+        
+        # Output path
+        output_dir = os.path.join(
+            self.config["save_dir"], 
+            self.config["log_name"],
+            "outputs", "predictions"
+        )
+        os.makedirs(output_dir, exist_ok=True)
+        
+        preds = preds.detach().cpu().numpy()
+        for i, tile_name in enumerate(tile_names):
+            # preds[i]: Tensor of shape (n_classes, H, W)
+            # Path to the original label to get spatial info
+            label_path = os.path.join(
+                self.config["data_dir"],
+                self.config["resolution"],
+                "labels/tiles_128",
+                tile_name,
+            )
+
+            with rasterio.open(label_path) as src:
+                meta = src.meta.copy()
+
+            # Update metadata for prediction output
+            meta.update({
+                "count": preds[i].shape[0],  # Number of classes (bands)
+                "dtype": preds.dtype,
+                "driver": "GTiff"
+            })
+
+            out_path = os.path.join(output_dir, tile_name)
+
+            with rasterio.open(out_path, 'w', **meta) as dst:
+                dst.write(preds[i])
 
 
     def configure_optimizers(self):

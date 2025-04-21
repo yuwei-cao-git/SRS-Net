@@ -46,7 +46,7 @@ def train(config):
     else:
         from models.s2_leading_species import Model
 
-    model = Model(config)
+    model = Model(config, vis=config["vis_mode"])
     # print(ModelSummary(model, max_depth=-1))  # Prints the full model summary
 
     early_stopping = EarlyStopping(

@@ -238,12 +238,11 @@ class Model(pl.LightningModule):
         rmse = torch.sqrt(loss)
 
         # Log val_loss if in validation stage for ModelCheckpoint
-        sync_state = True
         self.log(
             f"{stage}_loss",
             loss,
             logger=True,
-            sync_dist=sync_state,
+            sync_dist=True,
             on_step=True,
             on_epoch=True,
         )
@@ -251,7 +250,7 @@ class Model(pl.LightningModule):
             f"{stage}_rmse",
             rmse,
             logger=True,
-            sync_dist=sync_state,
+            sync_dist=True,
             on_step=True,
             on_epoch=(stage != "train"),
         )
@@ -260,7 +259,7 @@ class Model(pl.LightningModule):
             r2,
             logger=True,
             prog_bar=True,
-            sync_dist=sync_state,
+            sync_dist=True,
             on_step=True,
             on_epoch=True,
         )
@@ -269,7 +268,7 @@ class Model(pl.LightningModule):
                 f"{stage}_f1",
                 f1,
                 logger=True,
-                sync_dist=sync_state,
+                sync_dist=True,
                 on_step=True,
                 on_epoch=(stage != "train"),
             )
@@ -278,7 +277,7 @@ class Model(pl.LightningModule):
                 "test_oa",
                 oa,
                 logger=True,
-                sync_dist=sync_state,
+                sync_dist=True,
                 on_epoch=True,
             )
 

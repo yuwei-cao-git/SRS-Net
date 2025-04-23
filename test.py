@@ -8,17 +8,17 @@ import rasterio
 from rasterio.merge import merge
 
 
-def test(config):
-    chk_dir = os.path.join("img_logs", config["log_name"], "checkpoints", "final_model.ckpt")
+def test(configs):
+    chk_dir = os.path.join("img_logs", configs["log_name"], "checkpoints", "final_model.ckpt")
 
     # Initialize the DataModule
-    data_module = TreeSpeciesDataModule(config)
+    data_module = TreeSpeciesDataModule(configs)
 
     # 1. Setup the DataModule for testing (e.g., test dataset)
     data_module.setup(stage="test")
 
     # 2. Load the best model from checkpoint
-    litmodel = Model.load_from_checkpoint(chk_dir, config=config, vis=config["vis_mode"])
+    litmodel = Model.load_from_checkpoint(chk_dir, config=configs, vis=configs["vis_mode"])
 
     # 3. Create a PyTorch Lightning Trainer for testing
     trainer = Trainer(
@@ -31,7 +31,7 @@ def test(config):
     print("Testing complete.")
 
 
-def vis(prediction_folder, nodata_value=255, output_path="merged_predictions.tif"):
+def vis(prediction_folder, nodata_value=255, output_path="merged_all_dataset_preds.tif"):
     """
     Merge all prediction tiles in `prediction_folder` into a single raster.
     
@@ -78,15 +78,15 @@ def vis(prediction_folder, nodata_value=255, output_path="merged_predictions.tif
     
 if __name__ == "__main__":
     configs = {
-        "task": "classify", #"regression"
+        "task": "classify", # ["classify", "regression"]
         "batch_size": 32,
         "classes": ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],
         "data_dir": "/mnt/e/rmf_img",
         "fusion_mode": "sf",
         "leading_loss": False,
         "learning_rate": 0.0005,
-        "log_name": "resunet_slc_4seasons_sf_10m_bilinear_split_9bands_compose_cosine_ce",
-        "loss": "ce", # "mse"
+        "log_name": "resunet_slc_dem4seasons_sf_10m_bilinear_split_9bands_compose_cosine_ce",
+        "loss": "ce", # ["mse", "ce"]
         "n_bands": 9,
         "n_classes": 9,
         "network": "resunet",
@@ -96,11 +96,11 @@ if __name__ == "__main__":
         "resolution": "10m_bilinear_split",
         "save_dir": "/mnt/d/Sync/research/tree_species_estimation/code/image/SRS-Net/img_logs",
         "scheduler": "cosine",
-        "season": "4seasons",
+        "season": "dem4seasons",
         "transforms": "compose",
         "vis_mode": True,
     }
-    test(config=configs)
+    test(configs=configs)
     
     if configs["vis_mode"]:
         prediction_folder=os.path.join("img_logs", configs["log_name"], "outputs/predictions")

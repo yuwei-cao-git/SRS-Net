@@ -100,9 +100,4 @@ def train(config):
 
     # Test the model after training
     # Create a new Trainer for testing (single device, no DDP)
-    test_trainer = Trainer(
-        devices=1,
-        num_nodes=1,
-        accelerator="auto"
-    )
-    test_trainer.test(model, data_module)
+    trainer.test(model, data_module)

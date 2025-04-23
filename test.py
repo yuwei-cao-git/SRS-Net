@@ -1,5 +1,4 @@
 from pytorch_lightning import Trainer
-from models.s2_model import Model
 from dataset.s2 import TreeSpeciesDataModule
 import os
 import os
@@ -18,6 +17,10 @@ def test(configs):
     data_module.setup(stage="test")
 
     # 2. Load the best model from checkpoint
+    if configs['task'] == 'regression':
+        from models.s2_model import Model
+    else:
+        from models.s2_leading_species import Model
     litmodel = Model.load_from_checkpoint(chk_dir, config=configs, vis=configs["vis_mode"])
 
     # 3. Create a PyTorch Lightning Trainer for testing

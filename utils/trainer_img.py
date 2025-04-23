@@ -1,4 +1,5 @@
 from pytorch_lightning import Trainer, seed_everything
+import torch
 from pytorch_lightning.callbacks import (
     ModelCheckpoint,
     EarlyStopping,
@@ -74,7 +75,7 @@ def train(config):
         logger=[wandb_logger, csv_logger],
         callbacks=[early_stopping, checkpoint_callback, lr_monitor],
         num_nodes=1,
-        devices="auto",
+        devices=torch.cuda.device_count(),
         strategy="ddp",
     )
 

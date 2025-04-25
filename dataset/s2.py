@@ -168,7 +168,12 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
             "val": load_tile_names(join(self.processed_dir, "dataset/val_tiles.txt")),
             "test": load_tile_names(join(self.processed_dir, "dataset/test_tiles.txt"))
         }
-
+        if config['transforms'] == 'combined':
+            self.add_tiles = {
+                "train": load_tile_names(
+                join(config["data_dir"], "10m", "dataset/train_tiles.txt")
+            ),
+            }
         if self.config["season"] == "2seasons":
             self.datasets_to_use = [
                 "rmf_s2/summer/tiles_128",
@@ -237,14 +242,24 @@ class TreeSpeciesDataModule(pl.LightningDataModule):
                 remove_bands=self.remove_bands,
             )
             if self.config["transforms"] != "None":
-                aug_train_dataset = TreeSpeciesDataset(
-                    self.tile_names["train"],
-                    self.processed_dir,
-                    self.datasets_to_use,
-                    self.resolution,
-                    augment=self.config["transforms"],
-                    remove_bands=self.remove_bands,
-                )
+                if self.config["transforms"] == "combined":
+                    aug_train_dataset = TreeSpeciesDataset(
+                        self.add_tiles["train"],
+                        join(self.config["data_dir"], "10m"),
+                        self.datasets_to_use,
+                        resolution='10m',
+                        augment=self.config["transforms"],
+                        remove_bands=self.remove_bands,
+                    )
+                else:
+                    aug_train_dataset = TreeSpeciesDataset(
+                        self.tile_names["train"],
+                        self.processed_dir,
+                        self.datasets_to_use,
+                        self.resolution,
+                        augment=self.config["transforms"],
+                        remove_bands=self.remove_bands,
+                    )
                 self.train_dataset = torch.utils.data.ConcatDataset(
                     [self.train_dataset, aug_train_dataset]
                 )

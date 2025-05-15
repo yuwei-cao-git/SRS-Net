@@ -81,15 +81,15 @@ def vis(prediction_folder, nodata_value=255, output_path="merged_all_dataset_pre
     
 if __name__ == "__main__":
     configs = {
-        "task": "classify", # ["classify", "regression"]
+        "task": "regression", # ["classify", "regression"]
         "batch_size": 32,
         "classes": ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],
         "data_dir": "/mnt/e/rmf_img",
         "fusion_mode": "sf",
         "leading_loss": False,
         "learning_rate": 0.0005,
-        "log_name": "resunet_slc_dem4seasons_sf_10m_bilinear_split_9bands_compose_cosine_ce",
-        "loss": "ce", # ["mse", "ce"]
+        "log_name": "v2_resunet_4seasons_sf_5m_bilinear_split_9b_cosine_mse_combined",
+        "loss": "mse", # ["mse", "ce"]
         "n_bands": 9,
         "n_classes": 9,
         "network": "resunet",
@@ -99,8 +99,8 @@ if __name__ == "__main__":
         "resolution": "10m_bilinear_split",
         "save_dir": "/mnt/d/Sync/research/tree_species_estimation/code/image/SRS-Net/img_logs",
         "scheduler": "cosine",
-        "season": "dem4seasons",
-        "transforms": "compose",
+        "season": "4seasons", # "dem4seasons"
+        "transforms": "combined", #"compose"
         "vis_mode": True,
     }
     test(configs=configs)

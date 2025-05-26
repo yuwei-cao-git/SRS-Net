@@ -63,13 +63,12 @@ class Model(pl.LightningModule):
             self.num_season = 5
             input_channels = [self.n_bands, self.n_bands, self.n_bands, self.n_bands, 1]
         elif self.config["season"] == "all":
-            self.num_season = 7
+            self.num_season = 6 # remove phe
             input_channels = [
                 self.n_bands,
                 self.n_bands,
                 self.n_bands,
                 self.n_bands,
-                1,
                 36,
                 1,
             ]
@@ -101,13 +100,13 @@ class Model(pl.LightningModule):
                 else:
                     total_input_channels = (
                         self.n_bands * 4
-                        + 38  # all seasons + dem (1) + climate (36) + ph (1)
+                        + 37  # all seasons + dem (1) + climate (36)
                     )  # If no MF module, concatenating all seasons directly
             else:
                 if self.config["season"] == "cli4seasons":
                     add_channel = 36
                 elif self.config["season"] == "all":
-                    add_channel = 38
+                    add_channel = 37
                 else:
                     add_channel = 1
                 self.mf_module = MF(

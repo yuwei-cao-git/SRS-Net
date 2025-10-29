@@ -13,6 +13,29 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
+def load_backbone_weights(model, checkpoint_path):
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+
+    # Get the actual state_dict (Lightning saves it under 'state_dict')
+    state_dict = checkpoint.get("state_dict", checkpoint)
+
+    # 1. Filter out classifier layers with shape mismatches (e.g. output heads)
+    model_state = model.state_dict()
+    compatible_state_dict = {
+        k: v for k, v in state_dict.items()
+        if k in model_state and v.shape == model_state[k].shape
+    }
+
+    # 2. Load only compatible tensors
+    missing, unexpected = model.load_state_dict(compatible_state_dict, strict=False)
+
+    # 3. log what was skipped
+    if missing or unexpected:
+        print(f"Skipped {len(unexpected)} incompatible or filtered tensors:")
+        for name in unexpected:
+            print(f"  • {name}")
+
+    return model
 
 def train(config):
     seed_everything(123)
@@ -46,9 +69,13 @@ def train(config):
         from models.s2_model import Model
     else:
         from models.s2_leading_species import Model
-
+    
     model = Model(config, vis=config["vis_mode"])
     # print(ModelSummary(model, max_depth=-1))  # Prints the full model summary
+    
+    if config["pretrained_ckpt"] != "None":
+        # load backbone weights only, ignore head mismatch
+        model = load_backbone_weights(model, config["pretrained_ckpt"])
 
     early_stopping = EarlyStopping(
         monitor="val_loss",  # Metric to monitor
